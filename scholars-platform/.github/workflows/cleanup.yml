@@ -1,0 +1,44 @@
+name: Weekly Cleanup
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC
+    - cron: "0 3 * * 0"
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install supabase client
+        run: pip install supabase
+
+      - name: Mark expired opportunities as closed
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 - <<'EOF'
+          import os, datetime
+          from supabase import create_client
+
+          sb = create_client(
+              os.environ["NEXT_PUBLIC_SUPABASE_URL"],
+              os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+          )
+          today = datetime.date.today().isoformat()
+
+          result = (
+              sb.table("opportunities")
+              .update({"status": "closed"})
+              .lt("deadline", today)
+              .eq("status", "open")
+              .execute()
+          )
+          print(f"Marked {len(result.data)} opportunities as closed")
+          EOF

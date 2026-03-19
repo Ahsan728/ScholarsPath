@@ -1,0 +1,262 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.wrap { padding: 1rem 0; font-family: var(--font-sans); }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.tab { padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid var(--color-border-secondary); background: var(--color-background-secondary); color: var(--color-text-secondary); transition: all .15s; }
+.tab.active { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Architecture SVG panel */
+svg text { font-family: var(--font-sans); }
+
+/* Stack / feature panels */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { border: 1px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; background: var(--color-background-secondary); }
+.card-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 6px; }
+.card-body { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+.badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 10px; margin: 2px 2px 0 0; }
+.b-p { background:#EEEDFE; color:#3C3489; }
+.b-g { background:#EAF3DE; color:#27500A; }
+.b-b { background:#E6F1FB; color:#0C447C; }
+.b-o { background:#FAEEDA; color:#633806; }
+.b-r { background:#FCEBEB; color:#791F1F; }
+.b-t { background:#E1F5EE; color:#085041; }
+
+.stack-row { display: flex; flex-direction: column; gap: 8px; }
+.stack-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-radius: var(--border-radius-md); border: 1px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.stack-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
+.si-p { background: #EEEDFE; }
+.si-g { background: #EAF3DE; }
+.si-b { background: #E6F1FB; }
+.si-o { background: #FAEEDA; }
+.si-t { background: #E1F5EE; }
+.stack-info .name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.stack-info .desc { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; line-height: 1.5; }
+
+.roadmap { display: flex; flex-direction: column; gap: 0; }
+.phase { display: flex; gap: 14px; }
+.phase-line { display: flex; flex-direction: column; align-items: center; }
+.phase-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.phase-connector { width: 2px; flex: 1; min-height: 20px; }
+.phase-content { padding: 0 0 20px; }
+.phase-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.phase-time { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+.phase-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+</style>
+
+<div class="wrap">
+<div class="tabs">
+  <button class="tab active" onclick="show('arch')">Architecture</button>
+  <button class="tab" onclick="show('sources')">Data Sources</button>
+  <button class="tab" onclick="show('stack')">Tech Stack</button>
+  <button class="tab" onclick="show('features')">Key Features</button>
+  <button class="tab" onclick="show('roadmap')">Roadmap</button>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="panel active" id="panel-arch">
+<svg width="100%" viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<!-- Layer 1: Data Sources -->
+<rect x="20" y="12" width="640" height="80" rx="10" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+<text x="340" y="30" text-anchor="middle" font-size="10" font-weight="500" fill="#185FA5" letter-spacing=".05em">DATA INGESTION LAYER</text>
+<!-- source boxes -->
+<rect x="36" y="38" width="88" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="80" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">LinkedIn</text>
+<text x="80" y="72" text-anchor="middle" font-size="10" fill="#185FA5">Circulars</text>
+
+<rect x="136" y="38" width="88" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="180" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">Gov Portals</text>
+<text x="180" y="72" text-anchor="middle" font-size="10" fill="#185FA5">DAAD,UKRI…</text>
+
+<rect x="236" y="38" width="88" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="280" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">EU Portals</text>
+<text x="280" y="72" text-anchor="middle" font-size="10" fill="#185FA5">EURAXESS,EC…</text>
+
+<rect x="336" y="38" width="88" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="380" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">University</text>
+<text x="380" y="72" text-anchor="middle" font-size="10" fill="#185FA5">Websites</text>
+
+<rect x="436" y="38" width="88" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="480" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">RSS / APIs</text>
+<text x="480" y="72" text-anchor="middle" font-size="10" fill="#185FA5">Nature, arXiv…</text>
+
+<rect x="536" y="38" width="108" height="46" rx="6" fill="#fff" stroke="#B5D4F4" stroke-width="0.5"/>
+<text x="590" y="56" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">Social/Telegram</text>
+<text x="590" y="72" text-anchor="middle" font-size="10" fill="#185FA5">Groups, Channels</text>
+
+<!-- arrow down -->
+<line x1="340" y1="92" x2="340" y2="120" stroke="#378ADD" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- Layer 2: Agentic Crawler -->
+<rect x="80" y="122" width="520" height="64" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.7"/>
+<text x="340" y="140" text-anchor="middle" font-size="10" font-weight="500" fill="#3C3489" letter-spacing=".05em">AGENTIC CRAWLER &amp; SCHEDULER</text>
+<rect x="100" y="150" width="110" height="28" rx="5" fill="#fff" stroke="#AFA9EC" stroke-width="0.5"/>
+<text x="155" y="169" text-anchor="middle" font-size="11" fill="#3C3489">Web Scraper Agent</text>
+<rect x="222" y="150" width="110" height="28" rx="5" fill="#fff" stroke="#AFA9EC" stroke-width="0.5"/>
+<text x="277" y="169" text-anchor="middle" font-size="11" fill="#3C3489">LinkedIn API Agent</text>
+<rect x="344" y="150" width="110" height="28" rx="5" fill="#fff" stroke="#AFA9EC" stroke-width="0.5"/>
+<text x="399" y="169" text-anchor="middle" font-size="11" fill="#3C3489">RSS / Email Agent</text>
+<rect x="466" y="150" width="114" height="28" rx="5" fill="#fff" stroke="#AFA9EC" stroke-width="0.5"/>
+<text x="523" y="169" text-anchor="middle" font-size="11" fill="#3C3489">Change Detector</text>
+
+<!-- arrow down -->
+<line x1="340" y1="186" x2="340" y2="214" stroke="#7F77DD" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- Layer 3: AI Processing -->
+<rect x="60" y="216" width="560" height="110" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.7"/>
+<text x="340" y="234" text-anchor="middle" font-size="10" font-weight="500" fill="#085041" letter-spacing=".05em">AI PROCESSING PIPELINE</text>
+
+<rect x="80" y="244" width="120" height="72" rx="6" fill="#fff" stroke="#9FE1CB" stroke-width="0.5"/>
+<text x="140" y="262" text-anchor="middle" font-size="11" font-weight="500" fill="#085041">Extraction</text>
+<text x="140" y="278" text-anchor="middle" font-size="10" fill="#0F6E56">Title, deadline</text>
+<text x="140" y="292" text-anchor="middle" font-size="10" fill="#0F6E56">amount, field</text>
+<text x="140" y="306" text-anchor="middle" font-size="10" fill="#0F6E56">eligibility</text>
+
+<rect x="216" y="244" width="120" height="72" rx="6" fill="#fff" stroke="#9FE1CB" stroke-width="0.5"/>
+<text x="276" y="262" text-anchor="middle" font-size="11" font-weight="500" fill="#085041">Classification</text>
+<text x="276" y="278" text-anchor="middle" font-size="10" fill="#0F6E56">By nationality</text>
+<text x="276" y="292" text-anchor="middle" font-size="10" fill="#0F6E56">level, field</text>
+<text x="276" y="306" text-anchor="middle" font-size="10" fill="#0F6E56">deadline, type</text>
+
+<rect x="352" y="244" width="120" height="72" rx="6" fill="#fff" stroke="#9FE1CB" stroke-width="0.5"/>
+<text x="412" y="262" text-anchor="middle" font-size="11" font-weight="500" fill="#085041">Deduplication</text>
+<text x="412" y="278" text-anchor="middle" font-size="10" fill="#0F6E56">Semantic diff</text>
+<text x="412" y="292" text-anchor="middle" font-size="10" fill="#0F6E56">merge variants</text>
+<text x="412" y="306" text-anchor="middle" font-size="10" fill="#0F6E56">track updates</text>
+
+<rect x="488" y="244" width="120" height="72" rx="6" fill="#fff" stroke="#9FE1CB" stroke-width="0.5"/>
+<text x="548" y="262" text-anchor="middle" font-size="11" font-weight="500" fill="#085041">Embedding</text>
+<text x="548" y="278" text-anchor="middle" font-size="10" fill="#0F6E56">Vector encode</text>
+<text x="548" y="292" text-anchor="middle" font-size="10" fill="#0F6E56">semantic search</text>
+<text x="548" y="306" text-anchor="middle" font-size="10" fill="#0F6E56">similarity rank</text>
+
+<!-- arrow down -->
+<line x1="340" y1="326" x2="340" y2="354" stroke="#1D9E75" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- Layer 4: Storage -->
+<rect x="60" y="356" width="560" height="64" rx="10" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.7"/>
+<text x="340" y="374" text-anchor="middle" font-size="10" font-weight="500" fill="#633806" letter-spacing=".05em">STORAGE LAYER</text>
+<rect x="80" y="384" width="130" height="28" rx="5" fill="#fff" stroke="#FAC775" stroke-width="0.5"/>
+<text x="145" y="403" text-anchor="middle" font-size="11" fill="#633806">Vector DB (Pinecone)</text>
+<rect x="226" y="384" width="130" height="28" rx="5" fill="#fff" stroke="#FAC775" stroke-width="0.5"/>
+<text x="291" y="403" text-anchor="middle" font-size="11" fill="#633806">PostgreSQL (metadata)</text>
+<rect x="372" y="384" width="120" height="28" rx="5" fill="#fff" stroke="#FAC775" stroke-width="0.5"/>
+<text x="432" y="403" text-anchor="middle" font-size="11" fill="#633806">Redis (cache)</text>
+<rect x="508" y="384" width="100" height="28" rx="5" fill="#fff" stroke="#FAC775" stroke-width="0.5"/>
+<text x="558" y="403" text-anchor="middle" font-size="11" fill="#633806">S3 (raw docs)</text>
+
+<!-- arrow down -->
+<line x1="340" y1="420" x2="340" y2="448" stroke="#EF9F27" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- Layer 5: RAG Engine -->
+<rect x="100" y="450" width="480" height="64" rx="10" fill="#FAECE7" stroke="#D85A30" stroke-width="0.7"/>
+<text x="340" y="468" text-anchor="middle" font-size="10" font-weight="500" fill="#4A1B0C" letter-spacing=".05em">RAG QUERY ENGINE + LLM REASONING</text>
+<rect x="120" y="478" width="130" height="28" rx="5" fill="#fff" stroke="#F0997B" stroke-width="0.5"/>
+<text x="185" y="497" text-anchor="middle" font-size="11" fill="#4A1B0C">Retrieval (top-k)</text>
+<rect x="264" y="478" width="130" height="28" rx="5" fill="#fff" stroke="#F0997B" stroke-width="0.5"/>
+<text x="329" y="497" text-anchor="middle" font-size="11" fill="#4A1B0C">Profile Matching</text>
+<rect x="408" y="478" width="150" height="28" rx="5" fill="#fff" stroke="#F0997B" stroke-width="0.5"/>
+<text x="483" y="497" text-anchor="middle" font-size="11" fill="#4A1B0C">LLM Answer + Rank</text>
+
+<!-- arrow down -->
+<line x1="340" y1="514" x2="340" y2="542" stroke="#D85A30" stroke-width="1.2" marker-end="url(#arr)"/>
+
+<!-- Layer 6: User Interface -->
+<rect x="80" y="544" width="520" height="58" rx="10" fill="#FBEAF0" stroke="#D4537E" stroke-width="0.7"/>
+<text x="340" y="562" text-anchor="middle" font-size="10" font-weight="500" fill="#4B1528" letter-spacing=".05em">USER INTERFACE LAYER</text>
+<rect x="100" y="572" width="100" height="24" rx="5" fill="#fff" stroke="#ED93B1" stroke-width="0.5"/>
+<text x="150" y="589" text-anchor="middle" font-size="11" fill="#4B1528">Web App</text>
+<rect x="214" y="572" width="100" height="24" rx="5" fill="#fff" stroke="#ED93B1" stroke-width="0.5"/>
+<text x="264" y="589" text-anchor="middle" font-size="11" fill="#4B1528">Mobile App</text>
+<rect x="328" y="572" width="110" height="24" rx="5" fill="#fff" stroke="#ED93B1" stroke-width="0.5"/>
+<text x="383" y="589" text-anchor="middle" font-size="11" fill="#4B1528">Email Digest</text>
+<rect x="452" y="572" width="130" height="24" rx="5" fill="#fff" stroke="#ED93B1" stroke-width="0.5"/>
+<text x="517" y="589" text-anchor="middle" font-size="11" fill="#4B1528">Telegram / Slack Bot</text>
+</svg>
+</div>
+
+<!-- DATA SOURCES -->
+<div class="panel" id="panel-sources">
+<div class="grid">
+<div class="card"><div class="card-title">LinkedIn</div><div class="card-body">LinkedIn API + scraper agents monitor scholarship/job post keywords. Groups, company pages, hashtags like #PhDposition, #FullyFunded.<div style="margin-top:6px"><span class="badge b-b">API</span><span class="badge b-p">Scraper</span><span class="badge b-o">Webhook</span></div></div></div>
+<div class="card"><div class="card-title">Government & Institutional Portals</div><div class="card-body">DAAD, UKRI, EURAXESS, NWO, DAAD, Campus France, CSC China, MEXT Japan — crawled on a schedule with change detection.<div style="margin-top:6px"><span class="badge b-g">Crawler</span><span class="badge b-b">RSS</span></div></div></div>
+<div class="card"><div class="card-title">University Websites</div><div class="card-body">Graduate school pages of top 500 QS-ranked universities monitored for PhD openings, research fellowships, and funded positions.<div style="margin-top:6px"><span class="badge b-g">Crawler</span><span class="badge b-p">Sitemap</span></div></div></div>
+<div class="card"><div class="card-title">Academic Portals</div><div class="card-body">FindAPhD, AcademicPositions.eu, Jobs.ac.uk, Nature Careers, Science Careers, INOMICS — structured feeds.<div style="margin-top:6px"><span class="badge b-b">API</span><span class="badge b-b">RSS</span></div></div></div>
+<div class="card"><div class="card-title">Social & Messaging Channels</div><div class="card-body">Telegram channels, Facebook groups, Reddit (r/gradadmissions), Twitter/X lists — parsed via Telegram Bot API and browser agents.<div style="margin-top:6px"><span class="badge b-p">Bot API</span><span class="badge b-p">Scraper</span></div></div></div>
+<div class="card"><div class="card-title">Email Newsletters</div><div class="card-body">Curated digest emails from scholars4dev, opportunitydesk, APPLYBOARD — parsed via dedicated mailbox + NLP extraction.<div style="margin-top:6px"><span class="badge b-o">IMAP</span><span class="badge b-p">NLP Parser</span></div></div></div>
+<div class="card"><div class="card-title">Research Preprint Servers</div><div class="card-body">arXiv, SSRN, bioRxiv for academic positions embedded in papers + affiliated lab openings.<div style="margin-top:6px"><span class="badge b-b">API</span></div></div></div>
+<div class="card"><div class="card-title">User Submissions</div><div class="card-body">Community portal where users and institutions directly submit opportunities — AI validates & classifies before publishing.<div style="margin-top:6px"><span class="badge b-t">Form</span><span class="badge b-p">AI Validate</span></div></div></div>
+</div>
+</div>
+
+<!-- TECH STACK -->
+<div class="panel" id="panel-stack">
+<div class="stack-row">
+<div class="stack-item"><div class="stack-icon si-b">🕷</div><div class="stack-info"><div class="name">Crawling & Scraping</div><div class="desc">Playwright + Scrapy for dynamic pages, Apify for LinkedIn, Firecrawl for structured extraction, APScheduler for timed jobs. Tor/proxy rotation for rate limit avoidance.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-p">🧠</div><div class="stack-info"><div class="name">LLM & Embedding</div><div class="desc">Claude 3.5 Sonnet (classification + RAG answers), OpenAI text-embedding-3-large or Cohere embed-v3 for vectors. LangChain / LlamaIndex as orchestration framework.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-t">🗄</div><div class="stack-info"><div class="name">Vector & Relational Storage</div><div class="desc">Pinecone or Weaviate for vector search, PostgreSQL (Supabase) for structured metadata, Redis for caching search results, S3/R2 for raw document archive.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-g">⚙️</div><div class="stack-info"><div class="name">Backend & API</div><div class="desc">FastAPI (Python) for REST endpoints, Celery + Redis for async task queue, GraphQL for flexible frontend queries. Hosted on AWS / GCP with auto-scaling.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-o">🔍</div><div class="stack-info"><div class="name">Search & Ranking</div><div class="desc">Hybrid search: BM25 keyword + dense vector retrieval (FAISS/Pinecone). Re-ranking with Cohere Rerank or cross-encoder. Profile-aware personalised ranking.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-b">🖥</div><div class="stack-info"><div class="name">Frontend</div><div class="desc">Next.js 14 + TailwindCSS, multilingual (i18n), PWA-ready. Algolia InstantSearch for fast faceted filtering. Telegram Bot (python-telegram-bot) + email digest (SendGrid).</div></div></div>
+<div class="stack-item"><div class="stack-icon si-p">👤</div><div class="stack-info"><div class="name">Auth & User Profiles</div><div class="desc">Supabase Auth (OAuth via Google/LinkedIn), user nationality/field/level stored in profile. Drives personalised RAG queries and digest filtering.</div></div></div>
+<div class="stack-item"><div class="stack-icon si-g">📊</div><div class="stack-info"><div class="name">Monitoring & Ops</div><div class="desc">Airflow or Prefect for pipeline orchestration, Grafana + Prometheus for metrics, Sentry for error tracking, PostHog for product analytics.</div></div></div>
+</div>
+</div>
+
+<!-- KEY FEATURES -->
+<div class="panel" id="panel-features">
+<div class="grid">
+<div class="card"><div class="card-title">Nationality-Based Filtering</div><div class="card-body">Every opportunity is tagged with eligible nationalities, residence requirements, and exclusions. Applicants set their passport + residency in profile and only see relevant results.</div></div>
+<div class="card"><div class="card-title">Agentic Auto-Update</div><div class="card-body">AI agents detect deadline changes, status updates (open/closed/extended), and new rounds automatically — no manual curation. Users get real-time alerts.</div></div>
+<div class="card"><div class="card-title">Conversational Search (RAG)</div><div class="card-body">"Find me fully funded PhD positions in AI for Pakistani students in Europe closing after June 2025" — the LLM retrieves, ranks, and explains the best matches.</div></div>
+<div class="card"><div class="card-title">Smart Classification</div><div class="card-body">Auto-tagged by: type (scholarship/funding/internship/PhD/postdoc), field, degree level, funding amount, host country, deadline urgency, and competitiveness score.</div></div>
+<div class="card"><div class="card-title">Deadline Alerts</div><div class="card-body">Personalised reminders: 30/14/7/1 day before deadline via email, Telegram, or push notification. Includes AI-generated checklist of required documents.</div></div>
+<div class="card"><div class="card-title">Application Assistant</div><div class="card-body">RAG-powered helper that answers "what documents do I need?", "how competitive is this?", summarises eligibility rules, and drafts SOP outlines.</div></div>
+<div class="card"><div class="card-title">Verified & Curated Layer</div><div class="card-body">Community + admin can flag scam opportunities. AI scores source credibility. Verified badge for official institutional sources. Scam detection model trained on known fakes.</div></div>
+<div class="card"><div class="card-title">Multi-Channel Delivery</div><div class="card-body">Web dashboard, mobile app, daily/weekly email digest, Telegram bot, Slack integration, and embeddable widget for university career portals.</div></div>
+</div>
+</div>
+
+<!-- ROADMAP -->
+<div class="panel" id="panel-roadmap">
+<div class="roadmap">
+<div class="phase">
+  <div class="phase-line"><div class="phase-dot" style="background:#534AB7"></div><div class="phase-connector" style="background:var(--color-border-tertiary)"></div></div>
+  <div class="phase-content"><div class="phase-time">Phase 1 — Months 1–2</div><div class="phase-title">MVP Data Pipeline</div><div class="phase-desc">Crawlers for top 10 sources (EURAXESS, DAAD, LinkedIn, FindAPhD). Basic PostgreSQL schema. Manual nationality tagging. Simple keyword search interface.</div></div>
+</div>
+<div class="phase">
+  <div class="phase-line"><div class="phase-dot" style="background:#1D9E75"></div><div class="phase-connector" style="background:var(--color-border-tertiary)"></div></div>
+  <div class="phase-content"><div class="phase-time">Phase 2 — Months 3–4</div><div class="phase-title">AI Classification & Embeddings</div><div class="phase-desc">LLM-based extraction pipeline, vector DB integration, semantic deduplication, hybrid search. Nationality classifier trained on 50k+ annotated entries.</div></div>
+</div>
+<div class="phase">
+  <div class="phase-line"><div class="phase-dot" style="background:#EF9F27"></div><div class="phase-connector" style="background:var(--color-border-tertiary)"></div></div>
+  <div class="phase-content"><div class="phase-time">Phase 3 — Months 5–6</div><div class="phase-title">RAG Query Engine + User Profiles</div><div class="phase-desc">Conversational search interface, user auth, profile-driven personalisation. Deadline alert system. Beta launch with invite-only community.</div></div>
+</div>
+<div class="phase">
+  <div class="phase-line"><div class="phase-dot" style="background:#D85A30"></div><div class="phase-connector" style="background:var(--color-border-tertiary)"></div></div>
+  <div class="phase-content"><div class="phase-time">Phase 4 — Months 7–9</div><div class="phase-title">Agentic Monitoring + Bots</div><div class="phase-desc">Fully autonomous change detection agents. Telegram & email digest bots. Application assistant (document checklist + SOP helper). Mobile PWA launch.</div></div>
+</div>
+<div class="phase">
+  <div class="phase-line"><div class="phase-dot" style="background:#D4537E"></div><div class="phase-connector" style="background:transparent"></div></div>
+  <div class="phase-content"><div class="phase-time">Phase 5 — Month 10+</div><div class="phase-title">Scale & Monetise</div><div class="phase-desc">Freemium model (free basic search, Pro for alerts + assistant), institution API, embeddable widget, partner integrations with universities and funding bodies.</div></div>
+</div>
+</div>
+</div>
+
+</div>
+<script>
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
