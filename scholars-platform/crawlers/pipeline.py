@@ -41,10 +41,14 @@ logger = logging.getLogger("pipeline")
 
 anthropic_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-supabase: Client = create_client(
-    os.environ["NEXT_PUBLIC_SUPABASE_URL"],
-    os.environ["SUPABASE_SERVICE_ROLE_KEY"],
-)
+_sb_url = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+_sb_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+_sb_headers = {
+    "apikey": _sb_key,
+    "Authorization": f"Bearer {_sb_key}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation",
+}
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY", "")
 PINECONE_INDEX   = os.environ.get("PINECONE_INDEX_NAME", "scholars-opportunities")
@@ -96,6 +100,12 @@ def get_crawlers():
     except Exception as e:
         logger.warning(f"scholars4dev crawler unavailable: {e}")
 
+    try:
+        from campus_france_bd import CampusFranceBdCrawler
+        crawlers["campus_france_bd"] = CampusFranceBdCrawler()
+    except Exception as e:
+        logger.warning(f"Campus France BD crawler unavailable: {e}")
+
     return crawlers
 
 # ============================================================
@@ -140,14 +150,24 @@ Text to extract:
 def extract_with_claude(raw_text: str, type_hint: str = "scholarship") -> dict:
     """Use Claude Haiku to extract structured data from raw scraped text."""
     try:
-        prompt = EXTRACTION_PROMPT + raw_text[:3000]
+        user_content = raw_text[:3000]
         if type_hint != "scholarship":
-            prompt += f"\n\nHint: This appears to be a {type_hint}."
+            user_content += f"\n\nHint: This appears to be a {type_hint}."
 
         response = anthropic_client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+            system=[{"type": "text", "text": EXTRACTION_PROMPT,
+                     "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": user_content}],
+        )
+
+        usage = response.usage
+        logger.debug(
+            f"Claude usage — input: {usage.input_tokens}, "
+            f"output: {usage.output_tokens}, "
+            f"cache_created: {getattr(usage, 'cache_creation_input_tokens', 0)}, "
+            f"cache_read: {getattr(usage, 'cache_read_input_tokens', 0)}"
         )
 
         text = response.content[0].text.strip()
@@ -172,39 +192,26 @@ def extract_with_claude(raw_text: str, type_hint: str = "scholarship") -> dict:
 # STEP 2: EMBEDDING (HuggingFace free tier)
 # ============================================================
 
+_st_model = None
+
+def _get_st_model():
+    global _st_model
+    if _st_model is None:
+        from sentence_transformers import SentenceTransformer
+        logger.info("Loading sentence-transformers model (first run may download ~90MB)...")
+        _st_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    return _st_model
+
+
 def embed_text(text: str) -> list[float]:
-    """Generate embedding vector via HuggingFace Inference API."""
-    if not HF_TOKEN:
-        logger.warning("No HF_TOKEN — skipping embedding")
+    """Generate embedding vector using local sentence-transformers model."""
+    try:
+        model = _get_st_model()
+        vector = model.encode(text[:512], normalize_embeddings=True)
+        return vector.tolist()
+    except Exception as e:
+        logger.warning(f"Embedding failed: {e}")
         return []
-
-    url = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-
-    for attempt in range(3):
-        try:
-            resp = httpx.post(
-                url,
-                headers=headers,
-                json={"inputs": text[:512]},  # model limit
-                timeout=30,
-            )
-            if resp.status_code == 503:
-                # Model loading — wait and retry
-                wait = int(resp.headers.get("X-Wait-For-Model", "20"))
-                logger.info(f"HF model loading, waiting {wait}s...")
-                time.sleep(wait)
-                continue
-
-            resp.raise_for_status()
-            result = resp.json()
-            return result[0] if isinstance(result[0], list) else result
-
-        except Exception as e:
-            logger.warning(f"Embedding attempt {attempt+1} failed: {e}")
-            time.sleep(2 ** attempt)
-
-    return []
 
 # ============================================================
 # STEP 3: UPSERT TO PINECONE
@@ -251,7 +258,7 @@ def make_fingerprint(title: str, host_country: list, deadline: Optional[str]) ->
 
 def upsert_to_supabase(extracted: dict, raw: "RawOpportunity", embedding_id: str = "") -> Optional[str]:
     """
-    Upsert opportunity to Supabase.
+    Upsert opportunity to Supabase via direct REST API (bypasses supabase-py auth quirks).
     Returns the opportunity UUID or None on failure.
     """
     title = extracted.get("title") or raw.title
@@ -262,13 +269,21 @@ def upsert_to_supabase(extracted: dict, raw: "RawOpportunity", embedding_id: str
     deadline = extracted.get("deadline") or raw.deadline
     fingerprint = make_fingerprint(title, host_country, deadline)
 
+    rest = f"{_sb_url}/rest/v1"
+
     # Check if already exists
-    existing = (
-        supabase.table("opportunities")
-        .select("id")
-        .eq("fingerprint", fingerprint)
-        .execute()
-    )
+    try:
+        resp = httpx.get(
+            f"{rest}/opportunities",
+            headers=_sb_headers,
+            params={"select": "id", "fingerprint": f"eq.{fingerprint}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        existing = resp.json()
+    except Exception as e:
+        logger.error(f"Supabase check failed for '{title[:60]}': {e}")
+        return None
 
     record = {
         "title": title,
@@ -297,14 +312,26 @@ def upsert_to_supabase(extracted: dict, raw: "RawOpportunity", embedding_id: str
     }
 
     try:
-        if existing.data:
-            opp_id = existing.data[0]["id"]
-            supabase.table("opportunities").update(record).eq("id", opp_id).execute()
+        if existing:
+            opp_id = existing[0]["id"]
+            httpx.patch(
+                f"{rest}/opportunities",
+                headers=_sb_headers,
+                params={"id": f"eq.{opp_id}"},
+                json=record,
+                timeout=15,
+            ).raise_for_status()
             logger.debug(f"Updated: {title[:60]}")
             return opp_id
         else:
-            result = supabase.table("opportunities").insert(record).execute()
-            opp_id = result.data[0]["id"]
+            resp = httpx.post(
+                f"{rest}/opportunities",
+                headers=_sb_headers,
+                json=record,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            opp_id = resp.json()[0]["id"]
             logger.info(f"Inserted: {title[:60]}")
             return opp_id
 
@@ -321,6 +348,128 @@ def _is_past_deadline(deadline: Optional[str]) -> bool:
     except Exception:
         return False
 
+
+def upsert_direct_to_supabase(record: dict, embedding_id: str = "") -> Optional[str]:
+    """Upsert a pre-structured opportunity dict directly to Supabase (no Claude)."""
+    title = record.get("title", "")
+    fingerprint = record.get("fingerprint") or make_fingerprint(
+        title, record.get("host_country", []), record.get("deadline")
+    )
+    rest = f"{_sb_url}/rest/v1"
+
+    try:
+        resp = httpx.get(
+            f"{rest}/opportunities",
+            headers=_sb_headers,
+            params={"select": "id", "fingerprint": f"eq.{fingerprint}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        existing = resp.json()
+    except Exception as e:
+        logger.error(f"Supabase check failed for '{title[:60]}': {e}")
+        return None
+
+    db_record = {
+        "title": title,
+        "type": record.get("type", "scholarship"),
+        "host_country": record.get("host_country", []),
+        "eligible_nations": record.get("eligible_nations", ["ALL"]),
+        "ineligible_nations": record.get("ineligible_nations", []),
+        "field_of_study": record.get("field_of_study", []),
+        "degree_level": record.get("degree_level", "any"),
+        "funding_type": record.get("funding_type"),
+        "amount_usd": record.get("amount_usd"),
+        "currency": record.get("currency"),
+        "deadline": record.get("deadline"),
+        "status": record.get("status", "open"),
+        "description": record.get("description", title),
+        "eligibility_text": record.get("eligibility_text"),
+        "requirements": record.get("requirements", []),
+        "apply_url": record.get("apply_url", ""),
+        "source_url": record.get("source_url", ""),
+        "source_name": record.get("source_name", ""),
+        "scam_score": record.get("scam_score", 0),
+        "fingerprint": fingerprint,
+        "embedding_id": embedding_id,
+        "is_verified": record.get("is_verified", False),
+        "is_featured": record.get("is_featured", False),
+    }
+
+    try:
+        if existing:
+            opp_id = existing[0]["id"]
+            httpx.patch(
+                f"{rest}/opportunities",
+                headers=_sb_headers,
+                params={"id": f"eq.{opp_id}"},
+                json=db_record,
+                timeout=15,
+            ).raise_for_status()
+            logger.debug(f"Updated: {title[:60]}")
+            return opp_id
+        else:
+            resp = httpx.post(
+                f"{rest}/opportunities",
+                headers=_sb_headers,
+                json=db_record,
+                timeout=15,
+            )
+            resp.raise_for_status()
+            opp_id = resp.json()[0]["id"]
+            logger.info(f"Inserted: {title[:60]}")
+            return opp_id
+    except Exception as e:
+        logger.error(f"Supabase upsert failed for '{title[:60]}': {e}")
+        return None
+
+
+def process_direct_opportunity(record: dict, dry_run: bool = False) -> dict:
+    """Handle pre-structured opportunity dicts (no Claude extraction needed)."""
+    title = record.get("title", "")
+    if not title:
+        return {"title": "", "status": "skipped"}
+
+    if dry_run:
+        return {"title": title, "status": "dry_run", "extracted": record}
+
+    embed_input = (
+        f"{title} "
+        f"{record.get('description', '')} "
+        f"{' '.join(record.get('field_of_study', []))} "
+        f"{' '.join(record.get('host_country', []))} "
+        f"{record.get('degree_level', '')}"
+    )
+    vector = embed_text(embed_input)
+
+    fingerprint = record.get("fingerprint", "")
+    opp_id = upsert_direct_to_supabase(record, embedding_id=fingerprint)
+    if not opp_id:
+        return {"title": title, "status": "db_error"}
+
+    if vector:
+        pinecone_ok = upsert_to_pinecone(opp_id, vector, {
+            "title": title,
+            "type": record.get("type", "scholarship"),
+            "host_country": record.get("host_country", []),
+            "eligible_nations": record.get("eligible_nations", ["ALL"]),
+            "field_of_study": record.get("field_of_study", []),
+            "degree_level": record.get("degree_level", "any"),
+            "deadline": record.get("deadline"),
+            "source_name": record.get("source_name", ""),
+            "status": "open",
+        })
+        if pinecone_ok:
+            httpx.patch(
+                f"{_sb_url}/rest/v1/opportunities",
+                headers=_sb_headers,
+                params={"id": f"eq.{opp_id}"},
+                json={"embedding_id": opp_id},
+                timeout=15,
+            )
+
+    return {"title": title, "status": "ok", "id": opp_id}
+
 # ============================================================
 # MAIN PIPELINE
 # ============================================================
@@ -331,7 +480,7 @@ def process_opportunity(raw, dry_run: bool = False) -> dict:
 
     # 1. AI extraction
     extracted = extract_with_claude(raw.raw_text, raw.type_hint)
-    if not extracted:
+    if not extracted or isinstance(extracted, list):
         logger.warning(f"Extraction failed for: {raw.title[:60]}")
         result["status"] = "extraction_failed"
         return result
@@ -384,8 +533,13 @@ def process_opportunity(raw, dry_run: bool = False) -> dict:
             "status": "open",
         })
         if pinecone_ok:
-            # Update embedding_id in Supabase
-            supabase.table("opportunities").update({"embedding_id": opp_id}).eq("id", opp_id).execute()
+            httpx.patch(
+                f"{_sb_url}/rest/v1/opportunities",
+                headers=_sb_headers,
+                params={"id": f"eq.{opp_id}"},
+                json={"embedding_id": opp_id},
+                timeout=15,
+            )
 
     result["status"] = "ok"
     result["id"] = opp_id
@@ -415,7 +569,10 @@ def run_pipeline(source_filter: Optional[str] = None, dry_run: bool = False):
         for raw in raw_items:
             stats["total"] += 1
             try:
-                result = process_opportunity(raw, dry_run=dry_run)
+                if isinstance(raw, dict):
+                    result = process_direct_opportunity(raw, dry_run=dry_run)
+                else:
+                    result = process_opportunity(raw, dry_run=dry_run)
                 if result["status"] == "ok":
                     stats["ok"] += 1
                 elif result["status"] == "scam":

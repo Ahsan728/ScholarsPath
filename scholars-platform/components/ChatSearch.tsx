@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Send, Loader2, Bot } from "lucide-react"
 import { OpportunityCard } from "./OpportunityCard"
+import { UpgradeModal } from "./UpgradeModal"
 import type { Opportunity } from "@/types"
 
 interface Message {
@@ -22,6 +23,7 @@ export function ChatSearch() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -44,6 +46,11 @@ export function ChatSearch() {
       })
 
       const data = await res.json()
+
+      if (res.status === 429 && data.error === "limit_reached") {
+        setShowUpgrade(true)
+        return
+      }
 
       if (data.error) throw new Error(data.error)
 
@@ -69,6 +76,8 @@ export function ChatSearch() {
   }
 
   return (
+    <>
+    {showUpgrade && <UpgradeModal reason="rag_limit" onClose={() => setShowUpgrade(false)} />}
     <div className="rounded-2xl border bg-white shadow-sm">
       {/* Chat history */}
       <div className="max-h-[500px] overflow-y-auto p-4 space-y-4">
@@ -80,7 +89,7 @@ export function ChatSearch() {
             </div>
             <div className="chat-bubble-ai">
               <p className="text-sm">
-                Hi! I&apos;m ScholarPath AI. Tell me what you&apos;re looking for and I&apos;ll
+                Hi! I&apos;m ScholarAssist AI. Tell me what you&apos;re looking for and I&apos;ll
                 find the best matching scholarships, PhD positions, and fellowships for you.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -163,5 +172,6 @@ export function ChatSearch() {
         </form>
       </div>
     </div>
+    </>
   )
 }

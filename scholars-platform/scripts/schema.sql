@@ -11,30 +11,46 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";   -- for full-text trigram search
 -- ENUM TYPES
 -- ============================================================
 
-CREATE TYPE opportunity_type AS ENUM (
-  'scholarship', 'grant', 'phd', 'postdoc',
-  'fellowship', 'internship', 'bursary', 'exchange'
-);
+DO $$ BEGIN
+  CREATE TYPE opportunity_type AS ENUM (
+    'scholarship', 'grant', 'phd', 'postdoc',
+    'fellowship', 'internship', 'bursary', 'exchange'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE funding_type AS ENUM ('full', 'partial', 'stipend', 'salary');
+DO $$ BEGIN
+  CREATE TYPE funding_type AS ENUM ('full', 'partial', 'stipend', 'salary');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE degree_level AS ENUM (
-  'undergraduate', 'masters', 'phd', 'postdoc', 'any'
-);
+DO $$ BEGIN
+  CREATE TYPE degree_level AS ENUM (
+    'undergraduate', 'masters', 'phd', 'postdoc', 'any'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE opportunity_status AS ENUM ('open', 'closed', 'rolling', 'upcoming');
+DO $$ BEGIN
+  CREATE TYPE opportunity_status AS ENUM ('open', 'closed', 'rolling', 'upcoming');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE digest_frequency AS ENUM ('daily', 'weekly', 'never');
+DO $$ BEGIN
+  CREATE TYPE digest_frequency AS ENUM ('daily', 'weekly', 'never');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE source_type AS ENUM (
-  'website', 'rss', 'api', 'linkedin', 'telegram', 'email'
-);
+DO $$ BEGIN
+  CREATE TYPE source_type AS ENUM (
+    'website', 'rss', 'api', 'linkedin', 'telegram', 'email'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE alert_type AS ENUM (
-  'deadline_30d', 'deadline_14d', 'deadline_7d', 'deadline_1d', 'status_change'
-);
+DO $$ BEGIN
+  CREATE TYPE alert_type AS ENUM (
+    'deadline_30d', 'deadline_14d', 'deadline_7d', 'deadline_1d', 'status_change'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE TYPE alert_channel AS ENUM ('email', 'telegram', 'push');
+DO $$ BEGIN
+  CREATE TYPE alert_channel AS ENUM ('email', 'telegram', 'push');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ============================================================
 -- SOURCES — crawl registry
@@ -190,6 +206,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_opp_updated     ON opportunities;
+DROP TRIGGER IF EXISTS trg_users_updated   ON users;
+DROP TRIGGER IF EXISTS trg_sources_updated ON sources;
+
 CREATE TRIGGER trg_opp_updated
   BEFORE UPDATE ON opportunities
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -212,18 +232,22 @@ ALTER TABLE bookmarks     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts        ENABLE ROW LEVEL SECURITY;
 
 -- Public read on opportunities
+DROP POLICY IF EXISTS "opportunities_public_read" ON opportunities;
 CREATE POLICY "opportunities_public_read"
   ON opportunities FOR SELECT USING (TRUE);
 
 -- Users can only read/update their own profile
+DROP POLICY IF EXISTS "users_own_profile" ON users;
 CREATE POLICY "users_own_profile"
   ON users FOR ALL USING (auth.uid() = id);
 
 -- Bookmarks: own only
+DROP POLICY IF EXISTS "bookmarks_own" ON bookmarks;
 CREATE POLICY "bookmarks_own"
   ON bookmarks FOR ALL USING (auth.uid() = user_id);
 
 -- Alerts: own only
+DROP POLICY IF EXISTS "alerts_own" ON alerts;
 CREATE POLICY "alerts_own"
   ON alerts FOR ALL USING (auth.uid() = user_id);
 

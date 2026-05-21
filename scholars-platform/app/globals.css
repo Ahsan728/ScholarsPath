@@ -7,10 +7,6 @@
     --brand: 59 130 246;  /* blue-500 */
   }
 
-  * {
-    @apply border-border;
-  }
-
   html {
     scroll-behavior: smooth;
   }

@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const opp = await getOpportunityById(params.id)
   if (!opp) return { title: "Not Found" }
   return {
-    title: `${opp.title} — ScholarPath`,
+    title: `${opp.title} — ScholarAssist`,
     description: opp.description.slice(0, 160),
   }
 }

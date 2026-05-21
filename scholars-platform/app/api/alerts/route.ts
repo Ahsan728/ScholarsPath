@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
               <p>The deadline for <strong>${opp.title}</strong> is in <strong>${window.days} day${window.days > 1 ? "s" : ""}</strong> (${targetDate}).</p>
               <p><a href="${opp.apply_url}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px;">Apply Now</a></p>
               <p style="margin-top:16px;font-size:12px;color:#666;">
-                You're receiving this because you bookmarked this opportunity on ScholarPath.<br>
+                You're receiving this because you bookmarked this opportunity on ScholarAssist.<br>
                 <a href="https://scholars.ahsansuny.com/dashboard">Manage your alerts</a>
               </p>
             `,
@@ -123,7 +123,7 @@ async function sendBrevoEmail({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "ScholarPath", email: "noreply@scholars.ahsansuny.com" },
+      sender: { name: "ScholarAssist", email: "noreply@scholars.ahsansuny.com" },
       to: [{ email: to, name }],
       subject,
       htmlContent: body,

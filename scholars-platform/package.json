@@ -11,9 +11,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
     "@pinecone-database/pinecone": "^3.0.3",
-    "@supabase/supabase-js": "^2.45.4",
     "@supabase/ssr": "^0.5.1",
+    "@supabase/supabase-js": "^2.45.4",
     "ai": "^4.0.0",
+    "autoprefixer": "^10.5.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.454.0",

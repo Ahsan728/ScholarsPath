@@ -33,7 +33,7 @@ export async function ragQuery(
     ? `Student profile: Nationality: ${userContext.nationality?.join(", ") || "Not specified"}, Field: ${userContext.field?.join(", ") || "Any"}, Level: ${userContext.degree_level || "Any"}`
     : ""
 
-  const systemPrompt = `You are ScholarPath, an AI assistant helping students find scholarships, PhD positions, grants, and fellowships worldwide. You are especially focused on opportunities for Bangladeshi and South Asian students.
+  const systemPrompt = `You are ScholarAssist, an AI assistant helping students find scholarships, PhD positions, grants, and fellowships worldwide. You are especially focused on opportunities for Bangladeshi and South Asian students.
 
 Your role:
 - Rank retrieved opportunities by relevance to the student's query
@@ -96,7 +96,7 @@ export async function* streamRagQuery(
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
     stream: true,
-    system: `You are ScholarPath, an AI assistant for scholarship search. ${profileContext} Only use provided opportunities. Be concise and helpful.`,
+    system: `You are ScholarAssist, an AI assistant for scholarship search. ${profileContext} Only use provided opportunities. Be concise and helpful.`,
     messages: [
       {
         role: "user",

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { differenceInDays, format, parseISO } from "date-fns"
-import { MapPin, Calendar, BookOpen, ExternalLink } from "lucide-react"
+import { MapPin, Calendar, BookOpen, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Opportunity } from "@/types"
 
@@ -131,7 +131,7 @@ export function OpportunityCard({ opportunity: opp, featured }: Props) {
             <span>
               For: <span className="font-medium text-gray-600">{eligibleLabel}</span>
             </span>
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ArrowRight className="h-3.5 w-3.5" />
           </div>
         </div>
       </article>
