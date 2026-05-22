@@ -20,6 +20,7 @@ const CATEGORIES = [
   { value: "engineering", label: "Engineering" },
   { value: "business", label: "Business" },
   { value: "science", label: "Science" },
+  { value: "agriculture", label: "Agriculture & Forestry" },
   { value: "health", label: "Health" },
   { value: "arts", label: "Arts & Design" },
   { value: "social", label: "Social Sciences" },
