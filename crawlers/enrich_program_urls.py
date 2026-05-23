@@ -73,6 +73,15 @@ SKIP_DOMAINS = {
     "scholarshipportal.com", "phdstudies.com", "postdocjobs.com",
     "natureindex.com", "jobs.ac.uk", "euraxess.ec.europa.eu",
     "daad.de/assets", "ask.shiksha.com",
+    # More aggregators found in CS/IT enrichment pass
+    "unimymasters.com", "canamgroup.com", "ambitio.club", "stuudy.com",
+    "czechuniversities.com", "globaladmissions.com", "studyin.lt",
+    "euroeducation.net", "weuni.com", "gradireland.com", "applyboard.com",
+    "educatly.com", "designschool.com", "postgrad.com", "prospects.ac.uk",
+    "distancelearningportal.com", "universitairemasters.nl", "studyqa.com",
+    "postgrad.com", "postgraduatesearch.com", "masterscompass.com",
+    "mastersavenue.com", "acrosstheglobe.com", "globalstudentforum.com",
+    "mastersportal.com", "phdmap.com", "studymatch.me",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
