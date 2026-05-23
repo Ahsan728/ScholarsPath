@@ -82,6 +82,15 @@ SKIP_DOMAINS = {
     "postgrad.com", "postgraduatesearch.com", "masterscompass.com",
     "mastersavenue.com", "acrosstheglobe.com", "globalstudentforum.com",
     "mastersportal.com", "phdmap.com", "studymatch.me",
+    # Round 3 — pages 6-95 enrichment cleanup
+    "bachelorsportal.com", "qualifax.ie", "studyinnl.org", "collegedunia.com",
+    "tiktok.com", "goingto.university", "thinkmile.in", "unipage.net",
+    "oncampus.global", "search.studyinturkiye.com", "studyinestonia.ee",
+    "free-apply.com", "o4af.com", "studiekeuze123.nl", "studentum.fr",
+    "libertify.com", "afrismo.org", "heac.gov.om", "accessmasterstour.com",
+    "mim-guide.com", "smarco.eu", "eduopinions.com", "stuhit.com",
+    "europe.education", "epitech-experience.com", "study-vivendi.com",
+    "onlineuniversities.com", "smarta.vn", "jeduka.com",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
