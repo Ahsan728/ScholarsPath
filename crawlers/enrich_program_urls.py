@@ -91,6 +91,18 @@ SKIP_DOMAINS = {
     "mim-guide.com", "smarco.eu", "eduopinions.com", "stuhit.com",
     "europe.education", "epitech-experience.com", "study-vivendi.com",
     "onlineuniversities.com", "smarta.vn", "jeduka.com",
+    # Round 4 cleanup
+    "t24global.com", "ibn.idsi.md", "animationcareerreview.com", "ehef-japan.org",
+    "oia.ugm.ac.id", "kuroshhusseini.com", "thehighereducationreview.com",
+    "courses.laimoon.com", "techtitute.com", "essayforum.com", "sciencesprings.wordpress.com",
+    "youapply.com", "for9a.com", "best-masters.co.uk", "gradualin.com", "wireservice.ca",
+    "uniscopio.com", "blcspain.com", "edyouabroad.com", "portugalpolytechnicuniversities.com",
+    "ivyoverseas.com", "ku.ac.ae", "seedglobaleducation.com", "t.me", "nikshala.com",
+    "gostudyin.com", "newwayuk.com.ng", "quora.com", "careeroppotunities.com",
+    "smartadmits.com", "studentenkamer.org", "learn4good.com", "intechopen.com",
+    "academiajobs.com", "rentmasters.com", "academyfocus.com", "globalstudent.com",
+    "postgraduatesearch.co.uk", "thecareerstop.com", "overseasstudy.ng",
+    "euroleague-study.org",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
