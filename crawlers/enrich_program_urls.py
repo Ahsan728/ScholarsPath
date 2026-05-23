@@ -15,9 +15,12 @@ Run:
 
 import argparse
 import os
+import sys
 import time
 import urllib.parse
 from typing import Optional
+
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 import httpx
 from ddgs import DDGS
@@ -48,9 +51,28 @@ SKIP_DOMAINS = {
     "soboly.com", "studyabroadhungary.com", "studyinnorway.no",
     "studyinternational.com", "masterstudies.co.uk", "masterstudies.com",
     "studyinpoland.pl", "studyabroad.com", "coursera.org", "edx.org",
+    "shiksha.com", "jeduka.com", "goabroad.com", "gotouniversity.com",
+    "erudera.com", "opportunitiescircle.com", "thestudyabroadportal.com",
+    "phdportal.com", "shortcoursesportal.com", "smarta.vn", "cinturs.pt",
+    "study.iceland.is", "studies-in-poland.pl", "studyfinder", "tempus.tpf",
+    "conservation-careers.com", "masterin.it", "studyabroadcourses.org",
+    "applyaz.com", "admissiontestportal.com", "study-in-ireland.com",
+    "iufro.org", "island.is", "courses.aber.ac.uk", "portalold.ipb.pt",
+    "oferta.edmun.do", "myguide.de", "euroleague-study.org",
     "reddit.com", "facebook.com", "linkedin.com", "twitter.com",
     "instagram.com", "youtube.com", "wikipedia.org",
     "researchgate.net", "academia.edu",
+    # Study-abroad / aggregator portals (expanded)
+    "upgrad.com", "gogoespana.com", "studyclap.com", "hrcacademy.com",
+    "englishtestportal.com", "studyeurope.in", "plantlink.se",
+    "study-in-hungary.com", "studyinhungary.hu", "euroapply.eu",
+    "internazionalelingue.uniparthenope.it", "si.se", "edmun.do",
+    "study-in-europe.org", "studying-in-europe.org", "studyingeurope.eu",
+    "studyabroad.shiksha.com", "afterschoolafrica.com", "opportunitydesk.org",
+    "scholars4dev.com", "fulbright.org", "scholarshipdb.net",
+    "scholarshipportal.com", "phdstudies.com", "postdocjobs.com",
+    "natureindex.com", "jobs.ac.uk", "euraxess.ec.europa.eu",
+    "daad.de/assets", "ask.shiksha.com",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
@@ -76,14 +98,22 @@ def looks_like_program_page(url: str) -> bool:
 
 # ── Supabase helpers ──────────────────────────────────────────────────────────
 
-def get_programs(country: Optional[str], limit: int, refill: bool) -> list[dict]:
+def get_programs(country: Optional[str], limit: int, refill: bool,
+                 source: Optional[str] = None) -> list[dict]:
     params = {
-        "select": "id,university,program_name,country",
-        "source_name": "eq.mastersportal",
+        "select": "id,university,program_name,country,source_name",
         "limit": str(limit),
         "order": "id.asc",
-        "apply_url": "eq.not_found" if refill else "eq.",
     }
+    if refill:
+        params["or"] = "(apply_url.eq.not_found,apply_url.eq.)"
+    else:
+        params["apply_url"] = "eq."
+    if source:
+        params["source_name"] = f"eq.{source}"
+    else:
+        # All non-DAAD sources (DAAD URLs are fixed separately)
+        params["source_name"] = "neq.daad"
     if country:
         params["country"] = f"eq.{country}"
     r = httpx.get(f"{SB_URL}/rest/v1/masters_programs", headers=SB_HEADERS,
@@ -141,13 +171,15 @@ def find_program_url(ddgs: DDGS, university: str, program_name: str, country: st
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit",   type=int, default=500)
+    parser.add_argument("--limit",   type=int, default=2000)
     parser.add_argument("--country", type=str, default=None)
+    parser.add_argument("--source",  type=str, default=None,
+                        help="Filter by source_name (e.g. mastersportal, local_docs)")
     parser.add_argument("--refill",  action="store_true",
                         help="Re-try programs previously marked not_found")
     args = parser.parse_args()
 
-    programs = get_programs(args.country, args.limit, args.refill)
+    programs = get_programs(args.country, args.limit, args.refill, args.source)
     print(f"Enriching {len(programs)} programs...\n")
 
     found = 0
