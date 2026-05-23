@@ -103,6 +103,13 @@ SKIP_DOMAINS = {
     "academiajobs.com", "rentmasters.com", "academyfocus.com", "globalstudent.com",
     "postgraduatesearch.co.uk", "thecareerstop.com", "overseasstudy.ng",
     "euroleague-study.org",
+    # Round 5 cleanup
+    "studyinprague.cz", "rocapply.com", "careersportal.ie", "inkabroad.com",
+    "kadamboverseas.com", "summerschoolsineurope.eu", "go.study",
+    "schoolandcollegelistings.com", "polandstudy.com", "mastertube.com",
+    "schoolfinder.com", "courses.ie", "studyinholland.co.uk",
+    "digital-skills-jobs.europa.eu", "findmy.study", "universitaire.bachelors.nl",
+    "ucc-ie-public.courseleaf.com",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
