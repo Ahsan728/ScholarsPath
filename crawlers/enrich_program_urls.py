@@ -110,6 +110,17 @@ SKIP_DOMAINS = {
     "schoolfinder.com", "courses.ie", "studyinholland.co.uk",
     "digital-skills-jobs.europa.eu", "findmy.study", "universitaire.bachelors.nl",
     "ucc-ie-public.courseleaf.com",
+    # Round 6 - engineering programs cleanup
+    "thinkpoland.org", "educations.es", "pof.ues.rs.ba", "docplayer.net",
+    "studyfits.com", "studies-in-english.pl", "studyindenmark.dk", "wahresume.com",
+    "expatrio.com", "shakiledu.com", "best-masters.com", "u-bordeaux.com",
+    "studies-in-europe.eu", "scribd.com", "masters.docsity.com",
+    "alluniversity.info", "edumapple.com", "edunation.co", "build-shift.com",
+    # Round 7 - second engineering pass
+    "admissionsdirect.com", "aliconsultancyeurope.com", "studyingreece.edu.gr",
+    "studyinfocus.com", "studyindenmark.eu", "studyadvisor.lk",
+    "italystudycentre.com", "studyingreece.gr", "studyzone.com.br",
+    "eduniversal-ranking.com",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
