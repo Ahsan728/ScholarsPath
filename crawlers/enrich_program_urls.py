@@ -121,6 +121,10 @@ SKIP_DOMAINS = {
     "studyinfocus.com", "studyindenmark.eu", "studyadvisor.lk",
     "italystudycentre.com", "studyingreece.gr", "studyzone.com.br",
     "eduniversal-ranking.com",
+    # Round 8 - third engineering pass
+    "edurank.org", "studyinginswitzerland.com", "medcollege.edu.gr",
+    "studyinslovakia.eu", "master-maestrias.com", "study-in-germany.com",
+    "studylib.net",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
