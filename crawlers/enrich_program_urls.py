@@ -125,6 +125,11 @@ SKIP_DOMAINS = {
     "edurank.org", "studyinginswitzerland.com", "medcollege.edu.gr",
     "studyinslovakia.eu", "master-maestrias.com", "study-in-germany.com",
     "studylib.net",
+    # Round 9 - Natural Science & Math cleanup
+    "idp.com", "master-and-more.eu", "studyportugal.pt",
+    "studyanywhere.com",
+    "unischolars.com", "studentworldonline.com", "alfabetaglobal.com",
+    "aeccglobal.com", "search.aeccglobal.com",
 }
 
 # URL path keywords that suggest a specific program page (not a homepage)
