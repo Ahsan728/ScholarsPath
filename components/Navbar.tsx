@@ -126,6 +126,15 @@ export function Navbar() {
             )}
           </div>
 
+          {/* Mentorship link */}
+          <Link
+            href="/mentorship"
+            onClick={closeAll}
+            className="px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+          >
+            Mentorship
+          </Link>
+
           {/* Smart Match CTA */}
           <Link
             href="/match"
@@ -225,6 +234,13 @@ export function Navbar() {
               {l.label}
             </Link>
           ))}
+          <Link
+            href="/mentorship"
+            onClick={closeAll}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 mt-3"
+          >
+            🎯 Mentorship Program
+          </Link>
           <div className="pt-3 pb-1">
             <Link
               href="/match"

@@ -15,6 +15,7 @@ const CONFIG: Record<UpgradeReason, {
   title: string
   desc: string
   primaryCta: string
+  primaryHref: string
   secondaryCta?: string
   secondaryHref?: string
   dismissible: boolean
@@ -22,31 +23,39 @@ const CONFIG: Record<UpgradeReason, {
   rag_limit: {
     icon: <Sparkles className="h-7 w-7 text-blue-600" />,
     title: "You've used your 3 free AI queries",
-    desc: "Upgrade to Pro to keep chatting with ScholarAssist AI — 15 queries every month for just $2.50.",
-    primaryCta: "Upgrade to Pro — $2.50/mo",
+    desc: "Upgrade to Pro to keep chatting with ScholarAssist AI — 15 queries every month from just $5.",
+    primaryCta: "Upgrade to Pro — from $5/mo",
+    primaryHref: "/pricing",
     secondaryCta: "Create free account",
     secondaryHref: "/auth/signup",
     dismissible: true,
   },
+  // CV evaluation is Mentorship-only. Both Free and Pro users see this when
+  // they hit /evaluate without student tier. Direct them to /mentorship.
   cv_block: {
     icon: <Lock className="h-7 w-7 text-blue-600" />,
-    title: "You've used your 1 free CV evaluation",
-    desc: "Upgrade to Pro for 3 CV & Transcript evaluations every month — get matched to programs and scholarships based on your actual academic profile.",
-    primaryCta: "Upgrade to Pro — $2.50/mo",
+    title: "CV Evaluation is exclusive to Mentorship Program members",
+    desc: "Get a personalized review of your CV & academic transcript inside the Complete Mentorship Program — €150 for 30 sessions and lifelong career support.",
+    primaryCta: "Learn about the Mentorship Program",
+    primaryHref: "/mentorship",
+    secondaryCta: "Already enrolled? Sign in",
+    secondaryHref: "/auth/login",
     dismissible: true,
   },
   cv_limit: {
     icon: <Sparkles className="h-7 w-7 text-blue-600" />,
     title: "Monthly CV evaluation limit reached (3/3)",
-    desc: "Your Pro plan includes 3 CV & Transcript evaluations per month. Your quota resets on the 1st.",
-    primaryCta: "Manage Subscription",
+    desc: "Mentorship students get 3 CV & Transcript evaluations per month. Your quota resets on the 1st.",
+    primaryCta: "Back to dashboard",
+    primaryHref: "/account",
     dismissible: true,
   },
   session: {
     icon: <Clock className="h-7 w-7 text-blue-600" />,
     title: "Your free session has ended",
     desc: "You've used your 10 minutes of free browsing today. Sign up for free or upgrade to Pro for unlimited access. Resets in 24 hours.",
-    primaryCta: "Upgrade to Pro — $2.50/mo",
+    primaryCta: "Upgrade to Pro — from $5/mo",
+    primaryHref: "/pricing",
     secondaryCta: "Create free account",
     secondaryHref: "/auth/signup",
     dismissible: false,
@@ -77,7 +86,7 @@ export function UpgradeModal({ reason, onClose }: Props) {
 
         <div className="flex flex-col gap-3">
           <Link
-            href="/pricing"
+            href={cfg.primaryHref}
             className="block w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
             {cfg.primaryCta}

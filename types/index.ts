@@ -176,7 +176,9 @@ export interface MatchSession {
 // TIER / SUBSCRIPTION SYSTEM
 // ============================================================
 
-export type UserTier = 'free' | 'pro'
+// 'student' tier = Mentorship Program members (allowlisted by email).
+// Get everything Pro has PLUS exclusive CV/Transcript evaluation.
+export type UserTier = 'free' | 'pro' | 'student'
 
 export interface Subscription {
   id: string
@@ -193,6 +195,9 @@ export interface TierCheckResult {
   used: number
   limit: number
   is_pro: boolean
+  // True when the feature is reserved for Mentorship Program students only.
+  // Set by checkCvEvalLimit for any non-student tier (free, pro).
+  student_only?: boolean
 }
 
 // ============================================================

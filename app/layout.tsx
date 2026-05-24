@@ -38,7 +38,9 @@ async function getIsPro(): Promise<boolean> {
       .select("tier")
       .eq("user_id", session.user.id)
       .single()
-    return data?.tier === "pro"
+    // Student tier (Mentorship Program) gets the same Pro-equivalent
+    // session privilege — no 10-minute lockout.
+    return data?.tier === "pro" || data?.tier === "student"
   } catch {
     return false
   }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
+import { ensureStudentTier } from "@/lib/studentAllowlist"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -19,7 +20,12 @@ export async function GET(req: NextRequest) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && data.session?.user) {
+      // If this user's email is in the Mentorship student allowlist, auto-assign
+      // tier='student'. No-op for everyone else. Idempotent on repeated logins.
+      await ensureStudentTier(data.session.user.id, data.session.user.email)
+    }
     return response
   }
 

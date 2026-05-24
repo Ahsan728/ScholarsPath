@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr"
 import { adminSupabase } from "@/lib/supabase"
 import { redirect } from "next/navigation"
 import EvaluateClient from "./EvaluateClient"
+import { MentorshipUpsell } from "@/components/MentorshipUpsell"
 import type { UserTier } from "@/types"
 
 async function getEvalData() {
@@ -19,7 +20,7 @@ async function getEvalData() {
   const [{ data: user }, { data: sub }] = await Promise.all([
     adminSupabase
       .from("users")
-      .select("cv_eval_used,cv_eval_month,cv_eval_reset_month")
+      .select("cv_eval_month,cv_eval_reset_month")
       .eq("id", session.user.id)
       .single(),
     adminSupabase
@@ -30,18 +31,30 @@ async function getEvalData() {
   ])
 
   const tier = (sub?.tier as UserTier) ?? "free"
-  const isPro = tier === "pro"
-  const cvUsed = isPro
+  // CV evaluation is student-tier only. Free & Pro both see the upsell.
+  const isStudent = tier === "student"
+  const cvUsed = isStudent
     ? (user?.cv_eval_reset_month === currentMonth ? (user?.cv_eval_month ?? 0) : 0)
-    : (user?.cv_eval_used ? 1 : 0)
-  const cvLimit = isPro ? 3 : 1
+    : 0
+  const cvLimit = 3
 
-  return { tier, cvUsed, cvLimit }
+  return { tier, isStudent, cvUsed, cvLimit }
 }
 
 export default async function EvaluatePage() {
   const data = await getEvalData()
   if (!data) redirect("/auth/login?redirect=/evaluate")
+
+  // Non-student users (Free or Pro) see the Mentorship upsell, not the upload form.
+  if (!data.isStudent) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <MentorshipUpsell userTier={data.tier} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

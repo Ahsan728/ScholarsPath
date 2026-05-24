@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { adminSupabase } from "@/lib/supabase"
 import { format, addDays, parseISO, differenceInDays } from "date-fns"
+import { sendBrevoEmail } from "@/lib/email"
 
 // This route is called by GitHub Actions cron every day
 // GET /api/alerts?secret=CRON_SECRET
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
             to: user.email,
             name: user.full_name ?? "Scholar",
             subject: `⏰ Deadline in ${window.days} day${window.days > 1 ? "s" : ""}: ${opp.title}`,
-            body: `
+            html: `
               <h2>Deadline Reminder</h2>
               <p>Hi ${user.full_name ?? "Scholar"},</p>
               <p>The deadline for <strong>${opp.title}</strong> is in <strong>${window.days} day${window.days > 1 ? "s" : ""}</strong> (${targetDate}).</p>
@@ -106,32 +107,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, date: todayStr, ...stats })
-}
-
-async function sendBrevoEmail({
-  to, name, subject, body,
-}: {
-  to: string
-  name: string
-  subject: string
-  body: string
-}) {
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: {
-      "api-key": process.env.BREVO_API_KEY!,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sender: { name: "ScholarAssist", email: "noreply@scholars.ahsansuny.com" },
-      to: [{ email: to, name }],
-      subject,
-      htmlContent: body,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Brevo error: ${err}`)
-  }
 }

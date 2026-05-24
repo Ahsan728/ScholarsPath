@@ -9,6 +9,18 @@ export function calculateCost(model: string, inputTokens: number, outputTokens: 
   return (inputTokens * 3.0 + outputTokens * 15.0) / 1_000_000
 }
 
+// Helpers used across all gate checks. Keep these in sync with the tier table.
+// - isProTier: gives Pro-level access (unlimited browsing, 15 RAG/mo, etc.).
+//   Both paying Pro users AND Mentorship students count.
+// - isStudentTier: gives ONLY Mentorship students access to CV/Transcript
+//   evaluation. Paying Pro users do NOT get CV evaluation.
+export function isProTier(t: UserTier): boolean {
+  return t === "pro" || t === "student"
+}
+export function isStudentTier(t: UserTier): boolean {
+  return t === "student"
+}
+
 export async function getUserTier(userId: string): Promise<UserTier> {
   const { data } = await adminSupabase
     .from("subscriptions")
@@ -28,7 +40,7 @@ export async function checkRagLimit(
 ): Promise<TierCheckResult> {
   if (userId) {
     const tier = await getUserTier(userId)
-    if (tier === "pro") {
+    if (isProTier(tier)) {
       const { data: user } = await adminSupabase
         .from("users")
         .select("rag_queries_month, rag_reset_month")
@@ -56,7 +68,7 @@ export async function incrementRagUsage(
 ): Promise<void> {
   if (userId) {
     const tier = await getUserTier(userId)
-    if (tier === "pro") {
+    if (isProTier(tier)) {
       const currentMonth = new Date().getMonth() + 1
       const { data: user } = await adminSupabase
         .from("users")
@@ -98,51 +110,50 @@ export async function incrementRagUsage(
 // Free: 1 lifetime (user must be logged in)
 // Pro:  3/month
 
+// CV/Transcript Evaluation is STUDENT-TIER ONLY.
+// Free users: no access. Pro users (paying $5/mo): no access either.
+// Only Mentorship Program enrollees in `student_allowlist` (tier='student')
+// get 3 evaluations per month. Anyone else gets `student_only: true` so the
+// UI can render the MentorshipUpsell card.
 export async function checkCvEvalLimit(userId?: string | null): Promise<TierCheckResult> {
   if (!userId) {
-    return { allowed: false, used: 0, limit: 0, is_pro: false }
+    return { allowed: false, used: 0, limit: 0, is_pro: false, student_only: true }
   }
 
   const tier = await getUserTier(userId)
+  if (!isStudentTier(tier)) {
+    return { allowed: false, used: 0, limit: 0, is_pro: isProTier(tier), student_only: true }
+  }
+
   const { data: user } = await adminSupabase
     .from("users")
-    .select("cv_eval_used, cv_eval_month, cv_eval_reset_month")
+    .select("cv_eval_month, cv_eval_reset_month")
     .eq("id", userId)
     .single()
 
-  if (tier === "free") {
-    const used = user?.cv_eval_used ? 1 : 0
-    return { allowed: !user?.cv_eval_used, used, limit: 1, is_pro: false }
-  }
-
-  // Pro
   const currentMonth = new Date().getMonth() + 1
   const used = user?.cv_eval_reset_month === currentMonth ? (user?.cv_eval_month ?? 0) : 0
   return { allowed: used < 3, used, limit: 3, is_pro: true }
 }
 
-export async function incrementCvEvalUsage(userId: string, isPro: boolean): Promise<void> {
-  if (isPro) {
-    const currentMonth = new Date().getMonth() + 1
-    const { data: user } = await adminSupabase
-      .from("users")
-      .select("cv_eval_month, cv_eval_reset_month")
-      .eq("id", userId)
-      .single()
-    const shouldReset = user?.cv_eval_reset_month !== currentMonth
-    await adminSupabase
-      .from("users")
-      .update({
-        cv_eval_month: shouldReset ? 1 : (user?.cv_eval_month ?? 0) + 1,
-        cv_eval_reset_month: currentMonth,
-      })
-      .eq("id", userId)
-  } else {
-    await adminSupabase
-      .from("users")
-      .update({ cv_eval_used: true })
-      .eq("id", userId)
-  }
+// Called only after a successful CV evaluation for a student-tier user.
+// Free/Pro never reach this code path because checkCvEvalLimit returns
+// allowed:false for them — the API route bails before incrementing.
+export async function incrementCvEvalUsage(userId: string): Promise<void> {
+  const currentMonth = new Date().getMonth() + 1
+  const { data: user } = await adminSupabase
+    .from("users")
+    .select("cv_eval_month, cv_eval_reset_month")
+    .eq("id", userId)
+    .single()
+  const shouldReset = user?.cv_eval_reset_month !== currentMonth
+  await adminSupabase
+    .from("users")
+    .update({
+      cv_eval_month: shouldReset ? 1 : (user?.cv_eval_month ?? 0) + 1,
+      cv_eval_reset_month: currentMonth,
+    })
+    .eq("id", userId)
 }
 
 // ── Usage Logging ───────────────────────────────────────────

@@ -278,6 +278,27 @@ export default async function HomePage({ searchParams }: HomeProps) {
             </div>
           </div>
         )}
+
+        {/* ── Mentorship Program soft sell (homepage only) ──────── */}
+        {!hasFilters && (
+          <Link
+            href="/mentorship"
+            className="mt-8 block rounded-2xl bg-white border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 shrink-0">
+                <span className="text-xl">🎯</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-900">Need 1-on-1 help with your applications?</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Join the Complete Mentorship Program — 30 sessions, 6 mentors, one full application cycle.
+                </p>
+              </div>
+              <span className="text-blue-600 text-sm font-semibold whitespace-nowrap">Learn more →</span>
+            </div>
+          </Link>
+        )}
       </div>
     </div>
   )

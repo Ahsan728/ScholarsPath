@@ -26,15 +26,27 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId(req)
 
-    // ── Gate ─────────────────────────────────────────────────
+    // ── Gate (STUDENT-TIER ONLY) ────────────────────────────
+    // CV/Transcript evaluation is reserved for Mentorship Program members.
+    // Free users and Pro subscribers both get blocked; only tier='student'
+    // (allowlisted email) reaches the upload flow. See lib/tier.ts.
     const limit = await checkCvEvalLimit(userId)
     if (!limit.allowed) {
-      const reason = !userId
-        ? "login_required"
-        : limit.is_pro ? "pro_limit_reached" : "free_limit_reached"
+      // student_only takes precedence over any other reason — even if logged in.
+      const reason = limit.student_only
+        ? "mentorship_only"
+        : !userId
+          ? "login_required"
+          : "monthly_limit_reached"
       return NextResponse.json(
-        { error: reason, used: limit.used, limit: limit.limit, upgrade_url: "/pricing" },
-        { status: userId ? 429 : 401 }
+        {
+          error: reason,
+          used: limit.used,
+          limit: limit.limit,
+          mentorship_url: "/mentorship",
+          upgrade_url: "/pricing",
+        },
+        { status: !userId ? 401 : reason === "mentorship_only" ? 403 : 429 }
       )
     }
 
@@ -184,8 +196,9 @@ Rules:
       .filter((m: any) => m.id)
 
     // ── Increment usage + log ──────────────────────────────────
+    // CV evaluation is student-tier only; only students reach this code path.
     if (userId) {
-      await incrementCvEvalUsage(userId, limit.is_pro)
+      await incrementCvEvalUsage(userId)
     }
     logApiUsage({
       feature: "cv_evaluate",
