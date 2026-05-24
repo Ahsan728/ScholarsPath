@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { adminSupabase } from "@/lib/supabase"
+import { ReportIssueButton } from "@/components/ReportIssueButton"
 import type { MastersProgram } from "@/types"
 
 const countryFlags: Record<string, string> = {
@@ -98,7 +99,7 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
           </div>
 
           {/* Apply CTA */}
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex gap-3 flex-wrap items-center">
             <a
               href={program.apply_url}
               target="_blank"
@@ -117,6 +118,9 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
                 Program Page
               </a>
             )}
+            <div className="ml-auto">
+              <ReportIssueButton program={{ id: program.id, program_name: program.program_name }} />
+            </div>
           </div>
         </div>
 
