@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { adminSupabase } from "@/lib/supabase"
+import { ensureUserRow } from "@/lib/userBootstrap"
+import { ensureStudentTier } from "@/lib/studentAllowlist"
 import type { UserTier } from "@/types"
 
 /**
@@ -21,6 +23,12 @@ export async function GET(req: NextRequest) {
   if (!session) {
     return NextResponse.json({ user: null, tier: "free" as UserTier })
   }
+
+  // Backfill: existing auth users who signed up before the bootstrap fix
+  // get their public.users row created on first /me call after the fix.
+  // Idempotent — no-op once the row exists.
+  await ensureUserRow(session.user)
+  await ensureStudentTier(session.user.id, session.user.email)
 
   const { data: sub } = await adminSupabase
     .from("subscriptions")

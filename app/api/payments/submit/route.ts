@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { adminSupabase } from "@/lib/supabase"
 import { sendBrevoEmail, emailLayout } from "@/lib/email"
+import { ensureUserRow } from "@/lib/userBootstrap"
 
 const PLAN_AMOUNTS: Record<string, number> = { monthly: 5, semi: 25, annual: 50 }
 const VALID_METHODS = new Set(["bank", "bkash", "paypal", "wise"])
@@ -38,6 +39,10 @@ export async function POST(req: NextRequest) {
   if (!transaction_id || !receipt_path) {
     return NextResponse.json({ error: "Transaction ID and receipt are required" }, { status: 400 })
   }
+
+  // Bootstrap public.users row if it doesn't exist yet.
+  // Without this, the FK on payment_requests.user_id fails.
+  await ensureUserRow(user)
 
   // Insert row
   const { data, error } = await adminSupabase

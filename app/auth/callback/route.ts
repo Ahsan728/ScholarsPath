@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { ensureStudentTier } from "@/lib/studentAllowlist"
+import { ensureUserRow } from "@/lib/userBootstrap"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -22,6 +23,8 @@ export async function GET(req: NextRequest) {
     )
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.session?.user) {
+      // Bootstrap public.users row (required for all FK-dependent inserts).
+      await ensureUserRow(data.session.user)
       // If this user's email is in the Mentorship student allowlist, auto-assign
       // tier='student'. No-op for everyone else. Idempotent on repeated logins.
       await ensureStudentTier(data.session.user.id, data.session.user.email)

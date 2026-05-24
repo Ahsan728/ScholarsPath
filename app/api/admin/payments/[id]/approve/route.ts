@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { adminSupabase } from "@/lib/supabase"
 import { sendBrevoEmail, emailLayout } from "@/lib/email"
 
+// Note: at this point the payment_requests row already exists and its FK
+// to users(id) is satisfied (we ensureUserRow in payments/submit), so the
+// subscriptions upsert below is safe.
+
 function ensureAdmin(req: NextRequest): NextResponse | null {
   if (req.cookies.get("admin_auth")?.value !== process.env.ADMIN_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

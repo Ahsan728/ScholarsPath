@@ -40,10 +40,16 @@ export async function ensureStudentTier(userId: string, email: string | null | u
   // Already student or pro? Leave it alone (pro is paid, so don't overwrite to student).
   if (sub?.tier === "student" || sub?.tier === "pro") return
 
-  await adminSupabase
+  const { error } = await adminSupabase
     .from("subscriptions")
     .upsert(
       { user_id: userId, tier: "student", current_period_end: null },
       { onConflict: "user_id" }
     )
+  if (error) {
+    // FK violation here means public.users row doesn't exist yet.
+    // Caller should have invoked ensureUserRow first; we log instead of throw
+    // to avoid breaking the auth flow on a non-critical operation.
+    console.warn("[ensureStudentTier] subscriptions upsert failed:", error.message)
+  }
 }
