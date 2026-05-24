@@ -58,6 +58,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mt-16 border-t bg-white py-8 text-center text-sm text-gray-500">
           <p>© 2026 ScholarAssist by Ahsan Suny · scholars.ahsansuny.com</p>
           <p className="mt-1">Helping students worldwide find fully funded opportunities</p>
+          <div className="mt-3 flex justify-center gap-4 text-xs text-gray-400">
+            <a href="/mentorship" className="hover:text-blue-600">Mentorship</a>
+            <span>·</span>
+            <a href="/pricing" className="hover:text-blue-600">Pricing</a>
+            <span>·</span>
+            <a href="/admin/login" className="hover:text-blue-600">Admin</a>
+          </div>
         </footer>
       </body>
     </html>
