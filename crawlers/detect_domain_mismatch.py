@@ -18,6 +18,7 @@ Run:
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -78,6 +79,100 @@ HOST_NOISE = {
 }
 
 
+# ── Curated alias map (uni name substring → list of host tokens) ──
+def _load_aliases() -> list[dict]:
+    path = os.path.join(os.path.dirname(__file__), "uni_aliases.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        out = []
+        for entry in data.get("aliases", []):
+            uc = (entry.get("uni_contains") or "").lower().strip()
+            hosts = [h.lower() for h in (entry.get("hosts") or []) if h]
+            if uc and hosts:
+                out.append({"uc": uc, "hosts": hosts})
+        return out
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"  WARN failed to load uni_aliases.json: {e}", flush=True)
+        return []
+
+
+ALIASES = _load_aliases()
+
+
+def alias_match(host: str, university: str) -> bool:
+    """True if the curated map links this university to this host."""
+    uni_low = (university or "").lower()
+    host_low = (host or "").lower()
+    for a in ALIASES:
+        if a["uc"] in uni_low:
+            for h in a["hosts"]:
+                # match as full token or substring of the host
+                if h == host_low or h in host_low.split(".") or h in host_low:
+                    return True
+    return False
+
+
+def initialism_match(host_tok: set[str], uni_full_tok: list[str],
+                     uni_sig_tok: list[str]) -> bool:
+    """
+    Build initialism candidates from the university name and check if any
+    host token matches. Tries:
+      - Significant tokens only (e.g. "Ludwig-Maximilians-Universität München"
+        sig-only → "LMM" — won't help)
+      - Significant + "u" suffix for "X University" pattern (Lund → LU)
+      - FULL tokens including stop words ("Aalborg University" → "AU";
+        "Wageningen University Research" → "WUR")
+      - First letter doubled for single-word names + "u" ("Aalborg University"
+        → "AAU" — Danish convention)
+      - First two letters of significant token + "u" ("Aalborg" → "AAU"
+        as another route)
+
+    Catches: AAU (Aalborg University), AU (Aarhus University),
+    LU (Lund University), UU (Uppsala University), TU + city, WUR
+    (Wageningen University & Research), CBS (Copenhagen Business School),
+    BME (Budapest University of Technology and Economics), etc.
+    """
+    candidates: set[str] = set()
+
+    if uni_sig_tok:
+        # 1. Just significant tokens
+        candidates.add("".join(t[0] for t in uni_sig_tok))
+        candidates.add("".join(t[0] for t in sorted(uni_sig_tok)))
+        # 2. Significant tokens + "u" (the University)
+        candidates.add("".join(t[0] for t in uni_sig_tok) + "u")
+        # 3. Single-word + duplicated first letter + "u"  (Aalborg → AAU)
+        if len(uni_sig_tok) == 1 and len(uni_sig_tok[0]) >= 2:
+            candidates.add(uni_sig_tok[0][0] * 2 + "u")
+            candidates.add(uni_sig_tok[0][:2] + "u")
+
+    if uni_full_tok:
+        # 4. Initialism from the full name (including stop words like "of",
+        #    "and", "university") — this covers the most natural patterns
+        candidates.add("".join(t[0] for t in uni_full_tok))
+        # 5. Same, dropping leading "the"
+        if uni_full_tok and uni_full_tok[0] == "the":
+            candidates.add("".join(t[0] for t in uni_full_tok[1:]))
+
+    candidates = {c for c in candidates if 2 <= len(c) <= 6}
+    if not candidates:
+        return False
+
+    for h in host_tok:
+        if h in candidates:
+            return True
+        # Allow host to be a candidate with extra suffix/prefix glyphs
+        # ("aau" matches host "aaudk" or "aau1") and the reverse for
+        # hosts that wrap the acronym ("unimi" contains "uni").
+        for c in candidates:
+            if len(c) >= 2:
+                if h == c or (len(h) >= len(c) and (h.startswith(c) or h.endswith(c))):
+                    return True
+    return False
+
+
 def host_of(url: str) -> str:
     try:
         h = urlparse(url).hostname
@@ -114,30 +209,35 @@ def classify(apply_url: str, university: str) -> tuple[str, str]:
     if is_aggregator(host):
         return ("aggregator", host)
 
-    uni_tok = uni_tokens(university)
-    if not uni_tok:
+    # Curated alias map first — fastest, highest precision.
+    if alias_match(host, university):
+        return ("match", host)
+
+    uni_tok_set = uni_tokens(university)
+    if not uni_tok_set:
         # No university listed → can't judge → call it a match (don't flag)
         return ("match", host)
     host_tok = host_tokens(host)
     if not host_tok:
         return ("mismatch", host)
 
-    # An institutional acronym in the host (e.g. "tum.de" for "Technische
-    # Universität München") is a valid match even if no full token overlaps.
-    # We pick this up by checking 2–4 letter substrings of the host against
-    # the first letters of significant university tokens.
-    big_uni_toks = [t for t in uni_tok if len(t) >= 4]
+    # Direct token overlap (e.g. "wageningen" appears in "wageningenur.nl").
+    big_uni_toks = [t for t in uni_tok_set if len(t) >= 4]
     for t in big_uni_toks:
         for h in host_tok:
             if t == h or (len(t) >= 5 and t in h) or (len(h) >= 5 and h in t):
                 return ("match", host)
 
-    # Acronym fallback (e.g. "tum" ⊂ "tum.de", "kth" ⊂ "kth.se")
-    acronym = "".join(t[0] for t in sorted(uni_tok) if t not in HOST_NOISE)
-    if len(acronym) >= 2:
-        for h in host_tok:
-            if 2 <= len(h) <= 6 and h in acronym:
-                return ("match", host)
+    # Initialism fallback — needs the ORIGINAL order, not the set, so rebuild
+    # from the lowercased name in insertion order. We pass BOTH the full
+    # token list (incl. stop words) and the significant-only list, so the
+    # initialism builder can try "Aalborg University" → "AU" using the full
+    # tokens, and "Wageningen University Research" → "WUR" using either.
+    lower_name = (university or "").lower()
+    uni_full_ordered = [t for t in re.findall(r"[a-z0-9]+", lower_name) if len(t) > 1]
+    uni_sig_ordered  = [t for t in uni_full_ordered if len(t) > 2 and t not in STOP_WORDS]
+    if initialism_match(host_tok, uni_full_ordered, uni_sig_ordered):
+        return ("match", host)
 
     return ("mismatch", host)
 
