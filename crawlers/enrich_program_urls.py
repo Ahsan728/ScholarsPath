@@ -308,11 +308,6 @@ def main():
           f"rejected_worse={rejected_worse}"
           f"{' (DRY RUN)' if args.dry_run else ''}")
 
-            # Polite delay between programs
-            time.sleep(2)
-
-    print(f"\nDone. Found: {found}  Not found: {not_found}")
-
 
 if __name__ == "__main__":
     main()
