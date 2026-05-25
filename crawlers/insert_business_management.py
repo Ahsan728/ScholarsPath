@@ -50,7 +50,7 @@ def fp(program_name: str, country: str) -> str:
 
 
 def parse_duration_tuition(s: str):
-    s = s.replace("Â½", ".5")
+    s = s.replace("Â½", ".5").replace("½", ".5")
     duration_years = None
     tuition = None
 
@@ -73,7 +73,7 @@ def parse_duration_tuition(s: str):
     elif "Tuition not available" in s:
         tuition = None
     else:
-        m = re.search(r"â‚¬\s*([\d,]+)", s)
+        m = re.search(r"(?:â‚¬|€)\s*([\d,]+)", s)
         if m:
             try:
                 tuition = int(m.group(1).replace(",", ""))
@@ -138,15 +138,19 @@ def parse_chunk(chunk: str):
 
     while idx < len(block):
         line = block[idx]
+        duration_line = line.replace("Â½", ".5").replace("½", ".5")
         if line == "Featured":
             idx += 1
             continue
-        if re.match(r"^(\d+\.?\d*\s*year|\d+\s*month|\d+Â½|Â½\s*year)", line):
+        if re.match(r"^(\d+\.?\d*\s*year|\d+\s*month|\.5\s*year)", duration_line):
             duration_tuition = line
             break
-        if line.startswith("â‚¬") and idx + 1 < len(block):
+        if line.startswith(("â‚¬", "€")) and idx + 1 < len(block):
             next_line = block[idx + 1]
-            if re.match(r"^\d", next_line) and ("year" in next_line or "month" in next_line):
+            next_duration_line = next_line.replace("Â½", ".5").replace("½", ".5")
+            if re.match(r"^\d", next_duration_line) and (
+                "year" in next_duration_line or "month" in next_duration_line
+            ):
                 duration_tuition = next_line
                 break
         description_lines.append(line)
