@@ -2,29 +2,62 @@ import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import type { Opportunity, SearchFilters, SearchResult, User } from "@/types"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} is required. Add it to your Vercel project environment variables.`)
+  }
+  return value
+}
 
-// Browser/public client — used in client components
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Server client — used in Server Components / API routes
-export function createServerSupabase() {
-  const cookieStore = cookies()
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string) { return cookieStore.get(name)?.value },
-      set() {},
-      remove() {},
+function createLazySupabaseClient(getClient: () => SupabaseClient): SupabaseClient {
+  return new Proxy({} as SupabaseClient, {
+    get(_target, prop, receiver) {
+      const client = getClient()
+      const value = Reflect.get(client, prop, receiver)
+      return typeof value === "function" ? value.bind(client) : value
     },
   })
 }
 
+let publicClient: SupabaseClient | null = null
+let serviceClient: SupabaseClient | null = null
+
+// Browser/public client — used in client components
+export const supabase = createLazySupabaseClient(() => {
+  publicClient ??= createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  )
+  return publicClient
+})
+
+// Server client — used in Server Components / API routes
+export function createServerSupabase() {
+  const cookieStore = cookies()
+  return createServerClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    {
+      cookies: {
+        get(name: string) { return cookieStore.get(name)?.value },
+        set() {},
+        remove() {},
+      },
+    }
+  )
+}
+
 // Admin client — bypasses RLS (server-side only, never expose to browser)
-export const adminSupabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
+export const adminSupabase = createLazySupabaseClient(() => {
+  serviceClient ??= createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  return serviceClient
 })
 
 // ============================================================

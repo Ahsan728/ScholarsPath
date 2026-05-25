@@ -1,0 +1,7 @@
+scholars-platform/
+Documents/
+crawlers/
+scripts/
+*.txt
+.env.local
+.next/

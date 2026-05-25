@@ -5,6 +5,8 @@ import { ensureUserRow } from "@/lib/userBootstrap"
 import { ensureStudentTier } from "@/lib/studentAllowlist"
 import type { UserTier } from "@/types"
 
+export const dynamic = "force-dynamic"
+
 /**
  * Lightweight endpoint that returns the current user's id, email, and tier.
  * Called by the Navbar after each auth state change so the tier badge

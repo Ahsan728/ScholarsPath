@@ -37,3 +37,15 @@ coverage/
 # Misc
 *.log
 .turbo
+
+# Local user docs / scratch
+Documents/
+
+# Crawler logs (text dumps)
+crawlers/*.txt
+
+# Half-finished duplicate project
+scholars-platform/
+
+# TS incremental build cache
+*.tsbuildinfo

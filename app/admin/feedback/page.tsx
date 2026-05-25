@@ -1,5 +1,6 @@
 import { adminSupabase } from "@/lib/supabase"
 import { FeedbackClient } from "./FeedbackClient"
+import { AutoResolveButton } from "./AutoResolveButton"
 
 export interface FeedbackRow {
   id: string
@@ -13,6 +14,7 @@ export interface FeedbackRow {
   notes: string
   status: "pending" | "resolved" | "rejected"
   admin_note: string | null
+  ai_analysis: any | null
   reviewed_at: string | null
   created_at: string
   // Joined fields
@@ -58,13 +60,16 @@ export default async function AdminFeedbackPage({ searchParams }: { searchParams
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Program Feedback</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Users flag inaccuracies — wrong links, outdated info, incorrect requirements.
-          Click <strong>Resolve</strong> to mark fixed (optionally applying the suggested value
-          directly to the program), or <strong>Reject</strong> with a note.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Program Feedback</h1>
+          <p className="text-sm text-gray-400 mt-1 max-w-3xl">
+            Users flag inaccuracies — wrong links, outdated info, incorrect requirements.
+            Click <strong>Resolve</strong> to mark fixed (optionally applying the suggested value
+            directly to the program), or <strong>Reject</strong> with a note.
+          </p>
+        </div>
+        {tab === "pending" && <AutoResolveButton />}
       </div>
 
       <div className="flex gap-1 border-b border-gray-800 mb-5">

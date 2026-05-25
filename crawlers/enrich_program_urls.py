@@ -156,20 +156,29 @@ def looks_like_program_page(url: str) -> bool:
 # ── Supabase helpers ──────────────────────────────────────────────────────────
 
 def get_programs(country: Optional[str], limit: int, refill: bool,
-                 source: Optional[str] = None) -> list[dict]:
+                 source: Optional[str] = None,
+                 only_mismatches: bool = False) -> list[dict]:
     params = {
         "select": "id,university,program_name,country,source_name",
         "limit": str(limit),
         "order": "id.asc",
     }
-    if refill:
+    if only_mismatches:
+        # Re-search URLs for programs flagged by detect_domain_mismatch.py
+        # or validate_program_urls.py.
+        params["or"] = (
+            "(domain_match_status.in.(mismatch,aggregator),"
+            "url_status.in.(dead,wrong_domain))"
+        )
+    elif refill:
         params["or"] = "(apply_url.eq.not_found,apply_url.eq.)"
     else:
         params["apply_url"] = "eq."
     if source:
         params["source_name"] = f"eq.{source}"
-    else:
-        # All non-DAAD sources (DAAD URLs are fixed separately)
+    elif not only_mismatches:
+        # All non-DAAD sources (DAAD URLs are fixed separately).
+        # When --only-mismatches is set, include everything (DAAD can be wrong too).
         params["source_name"] = "neq.daad"
     if country:
         params["country"] = f"eq.{country}"
@@ -180,11 +189,19 @@ def get_programs(country: Optional[str], limit: int, refill: bool,
 
 
 def update_program(program_id: int, apply_url: str, source_url: str):
+    # Reset validation flags so the next pass of validate_program_urls.py and
+    # detect_domain_mismatch.py re-classifies the new URL.
     httpx.patch(
         f"{SB_URL}/rest/v1/masters_programs",
         headers=SB_HEADERS,
         params={"id": f"eq.{program_id}"},
-        json={"apply_url": apply_url, "source_url": source_url},
+        json={
+            "apply_url": apply_url, "source_url": source_url,
+            "url_status": None, "url_http_code": None, "url_final_url": None,
+            "url_checked_at": None, "url_check_error": None,
+            "domain_match_status": None, "domain_match_host": None,
+            "domain_match_checked_at": None,
+        },
         timeout=15,
     ).raise_for_status()
 
@@ -234,9 +251,12 @@ def main():
                         help="Filter by source_name (e.g. mastersportal, local_docs)")
     parser.add_argument("--refill",  action="store_true",
                         help="Re-try programs previously marked not_found")
+    parser.add_argument("--only-mismatches", action="store_true",
+                        help="Re-search ONLY programs flagged as domain mismatch / aggregator / dead URL")
     args = parser.parse_args()
 
-    programs = get_programs(args.country, args.limit, args.refill, args.source)
+    programs = get_programs(args.country, args.limit, args.refill, args.source,
+                            only_mismatches=args.only_mismatches)
     print(f"Enriching {len(programs)} programs...\n")
 
     found = 0

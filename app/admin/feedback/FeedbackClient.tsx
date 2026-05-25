@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Check, X, ExternalLink, Loader2, AlertCircle } from "lucide-react"
+import { Check, X, ExternalLink, Loader2, AlertCircle, Sparkles } from "lucide-react"
 import type { FeedbackRow } from "./page"
 
 interface Props {
@@ -32,6 +32,25 @@ const ISSUE_COLORS: Record<string, string> = {
 export function FeedbackClient({ rows, tab }: Props) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+
+  async function analyze(row: FeedbackRow) {
+    if (!row.evidence_url) {
+      alert("This feedback has no evidence URL to analyze.")
+      return
+    }
+    setAnalyzingId(row.id)
+    try {
+      const r = await fetch(`/api/admin/feedback/${row.id}/analyze`, { method: "POST" })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`)
+      router.refresh()
+    } catch (e: any) {
+      alert(`AI analysis failed: ${e.message}`)
+    } finally {
+      setAnalyzingId(null)
+    }
+  }
 
   async function resolve(row: FeedbackRow, applySuggestion: boolean) {
     const note = prompt(
@@ -105,6 +124,9 @@ export function FeedbackClient({ rows, tab }: Props) {
     <div className="space-y-3">
       {rows.map((r) => {
         const hasSuggestion = r.field && r.suggested_value
+        const ai = (r as any).ai_analysis as
+          | { field?: string; suggested_value?: any; confidence?: number; evidence_quote?: string; reasoning?: string; cost_usd?: number }
+          | null
         return (
           <div key={r.id} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             {/* Header */}
@@ -175,6 +197,43 @@ export function FeedbackClient({ rows, tab }: Props) {
               </div>
             )}
 
+            {/* AI analysis */}
+            {ai && (
+              <div className="bg-purple-950/20 border border-purple-900/40 rounded-lg p-3 mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold uppercase text-purple-300 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Haiku analysis
+                  </p>
+                  {typeof ai.confidence === "number" && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      ai.confidence >= 0.7 ? "bg-green-900/40 text-green-300"
+                        : ai.confidence >= 0.4 ? "bg-amber-900/40 text-amber-300"
+                        : "bg-gray-800 text-gray-400"
+                    }`}>
+                      {Math.round(ai.confidence * 100)}% confidence
+                    </span>
+                  )}
+                </div>
+                {ai.field && (
+                  <p className="text-xs text-purple-200 mb-1">
+                    <span className="text-purple-400">Suggests</span>{" "}
+                    <code className="bg-black/40 px-1.5 py-0.5 rounded">{ai.field}</code>{" "}
+                    <span className="text-purple-400">→</span>{" "}
+                    <span className="font-mono">{String(ai.suggested_value)}</span>
+                  </p>
+                )}
+                {ai.reasoning && <p className="text-xs text-gray-400 italic mb-1">{ai.reasoning}</p>}
+                {ai.evidence_quote && (
+                  <p className="text-[11px] text-gray-500 border-l-2 border-purple-700/50 pl-2">
+                    "{ai.evidence_quote}"
+                  </p>
+                )}
+                {typeof ai.cost_usd === "number" && (
+                  <p className="text-[10px] text-gray-600 mt-1">cost: ${ai.cost_usd.toFixed(4)}</p>
+                )}
+              </div>
+            )}
+
             {/* Admin note (for resolved/rejected) */}
             {r.admin_note && (
               <div className="bg-gray-950 border-l-2 border-blue-700 rounded-r-lg p-2.5 mb-3">
@@ -186,6 +245,17 @@ export function FeedbackClient({ rows, tab }: Props) {
             {/* Actions (pending only) */}
             {tab === "pending" && (
               <div className="flex gap-2 flex-wrap pt-1">
+                {r.evidence_url && !ai && (
+                  <button
+                    onClick={() => analyze(r)}
+                    disabled={busyId !== null || analyzingId !== null}
+                    className="rounded border border-purple-700 hover:bg-purple-900/30 disabled:opacity-50 px-3 py-1.5 text-xs font-medium text-purple-300 inline-flex items-center gap-1"
+                    title="Use Haiku to read the evidence URL and suggest a structured fix"
+                  >
+                    {analyzingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    Analyze with AI
+                  </button>
+                )}
                 {hasSuggestion && (
                   <button
                     onClick={() => resolve(r, true)}
