@@ -159,7 +159,7 @@ def get_programs(country: Optional[str], limit: int, refill: bool,
                  source: Optional[str] = None,
                  only_mismatches: bool = False) -> list[dict]:
     params = {
-        "select": "id,university,program_name,country,source_name",
+        "select": "id,university,program_name,country,source_name,apply_url",
         "limit": str(limit),
         "order": "id.asc",
     }
@@ -253,14 +253,23 @@ def main():
                         help="Re-try programs previously marked not_found")
     parser.add_argument("--only-mismatches", action="store_true",
                         help="Re-search ONLY programs flagged as domain mismatch / aggregator / dead URL")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print what would change without writing")
     args = parser.parse_args()
+
+    # Use the Auditor's classifier to validate any URL before writing it.
+    # This prevents replacing a "false positive mismatch" with a worse URL —
+    # if the new URL also fails domain_relates(), keep the old one.
+    from detect_domain_mismatch import classify as classify_url
 
     programs = get_programs(args.country, args.limit, args.refill, args.source,
                             only_mismatches=args.only_mismatches)
-    print(f"Enriching {len(programs)} programs...\n")
+    print(f"Enriching {len(programs)} programs"
+          f"{' (DRY RUN — no writes)' if args.dry_run else ''}...\n")
 
     found = 0
     not_found = 0
+    rejected_worse = 0
 
     with DDGS() as ddgs:
         for i, prog in enumerate(programs):
@@ -274,13 +283,30 @@ def main():
             url = find_program_url(ddgs, uni, name, ctry)
 
             if url:
-                print(f"  OK {url}")
-                update_program(pid, apply_url=url, source_url=url)
+                # Post-write validation gate: classify the candidate URL with
+                # the same logic the Auditor uses. If it's not a 'match' and
+                # we already have an apply_url, keep what we have rather than
+                # overwriting with another mismatch.
+                new_status, _ = classify_url(url, uni)
+                existing = prog.get("apply_url") or ""
+                if new_status != "match" and existing and existing.startswith("http"):
+                    print(f"  -- candidate would be {new_status}, keeping existing: {existing}")
+                    rejected_worse += 1
+                    continue
+
+                print(f"  {'WOULD WRITE' if args.dry_run else 'OK'} {url}")
+                if not args.dry_run:
+                    update_program(pid, apply_url=url, source_url=url)
                 found += 1
             else:
                 print(f"  -- not found")
-                update_program(pid, apply_url="not_found", source_url="")
+                if not args.dry_run:
+                    update_program(pid, apply_url="not_found", source_url="")
                 not_found += 1
+
+    print(f"\nDONE: found={found}, not_found={not_found}, "
+          f"rejected_worse={rejected_worse}"
+          f"{' (DRY RUN)' if args.dry_run else ''}")
 
             # Polite delay between programs
             time.sleep(2)
