@@ -29,14 +29,18 @@ local plan store). The summary below is enough to work from.
 
 ## Agents (six workers + observer)
 
-| # | Agent (`crawler` name) | Script | AI cost | Owner |
-|---|---|---|---|---|
-| 1 | `program_ingester` | `crawlers/insert_*.py` (one per source file) | $0 | Codex |
-| 2 | `source_ingester` | `crawlers/ingest_opportunity_sources.py` | ~$0.02/rich doc | Codex (URL-list) + Claude Code (Haiku) |
-| 3 | `url_validator` | `crawlers/validate_program_urls.py` | $0 | Existing |
-| 4 | `domain_mismatch_detector` | `crawlers/detect_domain_mismatch.py` | $0 | Claude Code |
-| 5 | `program_corrector` | `crawlers/enrich_program_urls.py` | ~$0.001/program | Claude Code |
-| 6 | `opportunity_discoverer` | `crawlers/discover_opportunities.py` | hard $20/run | Claude Code (Phase C) |
+All code is owned by **Claude Code** (interactive Anthropic agent in the
+session) with the user (Ahsan) reviewing and merging every PR. External
+coding agents are not currently in the rotation.
+
+| # | Agent (`crawler` name) | Script | AI cost |
+|---|---|---|---|
+| 1 | `program_ingester_*` | `crawlers/insert_*.py` (one per source file) | $0 |
+| 2 | `source_ingester` | `crawlers/ingest_opportunity_sources.py` | ~$0.02/rich doc |
+| 3 | `url_validator` | `crawlers/validate_program_urls.py` | $0 |
+| 4 | `domain_mismatch_detector` | `crawlers/detect_domain_mismatch.py` | $0 |
+| 5 | `program_corrector` | `crawlers/enrich_program_urls.py` | ~$0.001/program |
+| 6 | `opportunity_discoverer` | `crawlers/discover_opportunities.py` | hard $20/run |
 
 Each agent is a single Python file under `crawlers/` and gets observed via
 `crawler_runs` + `crawler_events`.
