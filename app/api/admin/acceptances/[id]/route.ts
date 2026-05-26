@@ -4,6 +4,9 @@ import { adminSupabase } from "@/lib/supabase"
 const ALLOWED_FIELDS = new Set([
   "country", "status", "intake_year", "intake_semester",
   "notes", "admin_verified", "admin_note",
+  "gpa", "gpa_scale", "ielts_score", "toefl_score",
+  "publications_count", "publications_text",
+  "bachelor_subject", "bachelor_university",
 ])
 
 function ensureAdmin(req: NextRequest): NextResponse | null {

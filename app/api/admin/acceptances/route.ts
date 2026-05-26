@@ -49,7 +49,12 @@ export async function POST(req: NextRequest) {
   const denied = ensureAdmin(req); if (denied) return denied
 
   const body = await req.json().catch(() => ({}))
-  const { program_id, country, status, intake_year, intake_semester, notes, admin_verified } = body
+  const {
+    program_id, country, status, intake_year, intake_semester, notes, admin_verified,
+    gpa, gpa_scale, ielts_score, toefl_score,
+    publications_count, publications_text,
+    bachelor_subject, bachelor_university,
+  } = body
 
   if (!program_id) return NextResponse.json({ error: "program_id is required" }, { status: 400 })
   if (!country || country.trim().length < 2) return NextResponse.json({ error: "country is required" }, { status: 400 })
@@ -64,6 +69,8 @@ export async function POST(req: NextRequest) {
     .from("masters_programs").select("id").eq("id", program_id).maybeSingle()
   if (!prog) return NextResponse.json({ error: "Program not found" }, { status: 404 })
 
+  const num = (v: any) => (v === "" || v === null || v === undefined) ? null : Number(v)
+
   const { data, error } = await adminSupabase.from("student_acceptances").insert({
     program_id,
     user_id: null,                                    // admin-added, no user account linked
@@ -71,7 +78,15 @@ export async function POST(req: NextRequest) {
     status,
     intake_year: year,
     intake_semester: intake_semester || null,
-    notes: notes ? String(notes).trim().slice(0, 1000) : null,
+    notes:               notes ? String(notes).trim().slice(0, 1000) : null,
+    gpa:                 num(gpa),
+    gpa_scale:           num(gpa) !== null ? (num(gpa_scale) ?? 4.0) : null,
+    ielts_score:         num(ielts_score),
+    toefl_score:         num(toefl_score),
+    publications_count:  num(publications_count),
+    publications_text:   publications_text   ? String(publications_text).trim().slice(0, 2000) : null,
+    bachelor_subject:    bachelor_subject    ? String(bachelor_subject).trim().slice(0, 120)   : null,
+    bachelor_university: bachelor_university ? String(bachelor_university).trim().slice(0, 200): null,
     submitted_by: "admin",
     admin_verified: admin_verified === true,
   }).select("id").single()
