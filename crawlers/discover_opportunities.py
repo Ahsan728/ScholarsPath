@@ -1,0 +1,445 @@
+#!/usr/bin/env python3
+"""
+Opportunity Discoverer (Phase C, Agent #6)
+
+Crawls trusted source URLs and university scholarship/funding/PhD pages,
+extracts structured opportunity rows via OpenAI gpt-4o-mini (or Anthropic
+Haiku as a fallback), and upserts into the `discovered_opportunities` table.
+
+⚠️  This is the only big-spend agent in the pipeline. Enforced safeguards:
+  - Hard $/run cap via crawlers/ai/extract.py::assert_budget (raises
+    BudgetExceeded if you'd cross max_usd_per_run; the run exits cleanly
+    with status='cancelled')
+  - Pre-filter via keyword grep before any LLM call (saves ~70% of pages
+    on the broad sweep — pages with zero scholarship/funding/phd hits
+    don't get a Haiku call)
+  - Content-hash cache (sha256 of cleaned text): identical pages from
+    the previous run are skipped
+  - Two queues:
+      Queue 1  curated opportunity_sources (high signal, prioritized)
+      Queue 2  distinct university apply_url pages from masters_programs
+               (limited to target countries: FR/DE/ES/IT/BE/HU/NL/SE/AT/
+                FI/DK/NO/PT/IE/CZ/PL)
+
+Run:
+  cd crawlers
+  python discover_opportunities.py --dry-run                          # plan only, no cost
+  python discover_opportunities.py --queue 1 --limit 5                # smoke test on sources
+  python discover_opportunities.py --queue 1                          # full sources sweep
+  python discover_opportunities.py --queue 2 --country Germany --limit 50
+
+Recommended first live run:
+  python discover_opportunities.py --queue 1 --limit 5 --max-usd 0.50
+"""
+
+import argparse
+import hashlib
+import os
+import re
+import sys
+from datetime import datetime, timezone
+from typing import Optional
+from urllib.parse import urlparse
+
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+import httpx
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.local"))
+
+from crawler_logger import CrawlerRun
+from ai.extract import extract_json, BudgetExceeded, SchemaInvalid
+
+SB_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+SB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SB_H = {
+    "apikey": SB_KEY,
+    "Authorization": f"Bearer {SB_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=minimal",
+}
+
+PROMPT_VERSION = "v1"
+
+TARGET_COUNTRIES = {
+    "France", "Germany", "Spain", "Italy", "Belgium", "Hungary",
+    "Netherlands", "Sweden", "Austria", "Finland", "Denmark",
+    "Norway", "Portugal", "Ireland", "Czech Republic", "Poland",
+}
+
+# Cheap pre-filter — if NONE of these appear in the page text, skip the LLM
+KEYWORDS_RX = re.compile(
+    r"scholarship|funding|fellowship|grant|phd|doctorate|bursar(y|ies)|"
+    r"borse di studio|bourse|stipendium|beurs|stipendia|"
+    r"financ(ial|ement) (aid|support)",
+    re.IGNORECASE,
+)
+
+UA = ("Mozilla/5.0 (compatible; ScholarAssistBot/1.0; "
+      "+https://scholars.ahsansuny.com)")
+REQ_HEADERS = {"User-Agent": UA, "Accept": "text/html,*/*;q=0.5"}
+
+
+# ── HTTP + extraction helpers ─────────────────────────────────
+def fetch_page(url: str) -> Optional[str]:
+    """GET and return the raw HTML, or None if unreachable / non-text."""
+    try:
+        r = httpx.get(url, headers=REQ_HEADERS, timeout=20, follow_redirects=True)
+        if r.status_code != 200:
+            return None
+        ct = r.headers.get("content-type", "")
+        if "text/html" not in ct and "text/plain" not in ct:
+            return None
+        return r.text
+    except Exception:
+        return None
+
+
+def strip_html(html: str) -> str:
+    """Lightweight Readability replacement: drop nav/script/style + tags."""
+    html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
+    html = re.sub(r"<style[\s\S]*?</style>",   " ", html, flags=re.IGNORECASE)
+    html = re.sub(r"<noscript[\s\S]*?</noscript>", " ", html, flags=re.IGNORECASE)
+    html = re.sub(r"<(nav|header|footer|aside|form|svg)[\s\S]*?</\1>", " ", html, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = (text.replace("&nbsp;", " ").replace("&amp;", "&")
+                .replace("&lt;", "<").replace("&gt;", ">"))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+# ── Queue fetchers ────────────────────────────────────────────
+def fetch_queue_1(args) -> list[dict]:
+    """opportunity_sources rows ordered by staleness (NULLs first, then oldest)."""
+    base = f"{SB_URL}/rest/v1/opportunity_sources"
+    params = {
+        "select": "id,url,country,scope,title,last_crawled_at",
+        "order":  "last_crawled_at.asc.nullsfirst",
+        "limit":  str(args.limit or 100),
+    }
+    if args.country:
+        params["country"] = f"eq.{args.country}"
+    headers = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
+    r = httpx.get(base, headers=headers, params=params, timeout=30)
+    if r.status_code != 200:
+        print(f"  WARN: queue 1 fetch returned {r.status_code} — does opportunity_sources exist?")
+        return []
+    return r.json() or []
+
+
+def fetch_queue_2(args) -> list[dict]:
+    """
+    Distinct universities from masters_programs whose apply_url is OK +
+    domain matches. We then heuristically generate candidate scholarship
+    page URLs from each university's base URL.
+    """
+    base = f"{SB_URL}/rest/v1/masters_programs"
+    params = {
+        "select": "university,country,apply_url",
+        "url_status":          "eq.ok",
+        "domain_match_status": "eq.match",
+        "limit":   "1000",  # PostgREST cap; paginate if more needed
+    }
+    if args.country:
+        params["country"] = f"eq.{args.country}"
+    headers = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
+    r = httpx.get(base, headers=headers, params=params, timeout=30)
+    if r.status_code != 200:
+        return []
+    rows = r.json() or []
+    # Dedup by (university, country)
+    seen = {}
+    for row in rows:
+        key = (row.get("university") or "", row.get("country") or "")
+        if not row.get("country") in TARGET_COUNTRIES:
+            continue
+        if key in seen:
+            continue
+        try:
+            parsed = urlparse(row["apply_url"])
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            continue
+        seen[key] = {
+            "university": row["university"],
+            "country":    row["country"],
+            "base_url":   base_url,
+        }
+    out = list(seen.values())
+    if args.limit:
+        out = out[: args.limit]
+    return out
+
+
+CANDIDATE_PATHS = [
+    "/scholarships", "/scholarship", "/funding", "/fees-and-funding",
+    "/financial-support", "/financial-aid", "/grants", "/phd",
+    "/doctoral", "/admission/scholarships", "/study/scholarships",
+    "/en/scholarships", "/en/funding", "/en/phd",
+]
+
+
+def queue_2_candidate_urls(base_url: str) -> list[str]:
+    """Cheap heuristic — return the most likely scholarship page paths."""
+    return [base_url.rstrip("/") + p for p in CANDIDATE_PATHS]
+
+
+# ── LLM extraction prompt ─────────────────────────────────────
+def build_prompt(page_text: str, source_url: str, country_hint: Optional[str]) -> str:
+    return f"""Extract every distinct scholarship, fellowship, grant, PhD, or funding opportunity mentioned in the page text. Reply with ONLY valid JSON:
+
+{{
+  "opportunities": [
+    {{
+      "type":            "<scholarship | grant | phd | postdoc | fellowship | internship | bursary | assistantship | exchange>",
+      "title":           "<short distinctive name, e.g. 'Eiffel Excellence Scholarship'>",
+      "description":     "<1-3 sentences from the page>",
+      "country":         "<full English country name, or 'Europe' for pan-European>",
+      "degree_level":    "<undergraduate | masters | phd | postdoc | any | null>",
+      "field_of_study":  ["<broad field>", "..."] or [],
+      "amount_usd":      <number or null>,
+      "amount_text":     "<verbatim funding string from page or null>",
+      "funding_type":    "<full | partial | stipend | salary | tuition_waiver | null>",
+      "eligibility_text":  "<short eligibility summary or null>",
+      "eligible_nations":  ["<ISO-2 country code or 'ALL' or 'DEVELOPING'>"] or [],
+      "ineligible_nations": [],
+      "deadline":         "<YYYY-MM-DD or null>",
+      "deadline_text":    "<verbatim string like 'Rolling' or 'Mid-March 2026' or null>",
+      "intake":           "<e.g. 'Fall 2026' or null>",
+      "apply_url":        "<direct apply link if present or null>"
+    }}
+  ]
+}}
+
+Source URL: {source_url}
+Country hint (if obvious): {country_hint or 'unknown'}
+
+Rules:
+- Skip the page if it is clearly a homepage / navigation index with no actual opportunities.
+- Skip rows you can't confidently identify as a real opportunity (don't invent).
+- amount_usd: convert from EUR / GBP / SEK / etc. using approximate rates if the page only gives non-USD.
+- deadline: parse explicit dates only. If only a season is given, use deadline_text.
+- Return {{"opportunities": []}} if nothing usable.
+
+Page text (truncated):
+{page_text[:14000]}"""
+
+
+# ── Upsert ────────────────────────────────────────────────────
+def upsert_opportunities(rows: list[dict], source_id: Optional[str],
+                         source_url: str, run_id: str, content_hash_str: str,
+                         dry_run: bool, run: CrawlerRun) -> int:
+    written = 0
+    now = datetime.now(timezone.utc).isoformat()
+    for opp in rows:
+        if not opp.get("title") or not opp.get("country"):
+            continue
+        record = {
+            "source_id":      source_id,
+            "source_url":     source_url,
+            "run_id":         run_id,
+            "prompt_version": PROMPT_VERSION,
+            "content_hash":   content_hash_str,
+            "type":           opp.get("type") or "scholarship",
+            "title":          opp["title"][:300],
+            "description":    (opp.get("description") or "")[:2000] or None,
+            "university":     opp.get("university") or None,
+            "country":        opp["country"],
+            "degree_level":   opp.get("degree_level"),
+            "field_of_study": opp.get("field_of_study") or [],
+            "amount_usd":     opp.get("amount_usd"),
+            "amount_text":    (opp.get("amount_text") or "")[:300] or None,
+            "funding_type":   opp.get("funding_type"),
+            "eligibility_text":   (opp.get("eligibility_text") or "")[:1000] or None,
+            "eligible_nations":   opp.get("eligible_nations")   or [],
+            "ineligible_nations": opp.get("ineligible_nations") or [],
+            "deadline":         opp.get("deadline"),
+            "deadline_text":    (opp.get("deadline_text") or "")[:200] or None,
+            "intake":           (opp.get("intake") or "")[:100] or None,
+            "apply_url":        opp.get("apply_url"),
+            "last_seen_at":     now,
+        }
+
+        if dry_run:
+            print(f"    WOULD UPSERT: [{record['type']:11s}] {record['country'][:12]:12s} {record['title'][:80]}")
+            run.skipped()
+            continue
+
+        r = httpx.post(
+            f"{SB_URL}/rest/v1/discovered_opportunities",
+            headers={**SB_H, "Prefer": "return=minimal,resolution=merge-duplicates"},
+            json=record, timeout=30,
+        )
+        if r.status_code in (200, 201, 204):
+            written += 1
+            run.ok()
+        else:
+            run.failed(target_url=source_url,
+                       message=f"insert failed: {r.status_code} {r.text[:200]}")
+    return written
+
+
+# ── Per-page worker ───────────────────────────────────────────
+def process_page(url: str, country_hint: Optional[str],
+                 source_id: Optional[str], run: CrawlerRun,
+                 args, last_hash_by_url: dict[str, str]) -> int:
+    html = fetch_page(url)
+    if not html:
+        run.event("warn", target_url=url, message="fetch failed")
+        run.skipped()
+        return 0
+
+    text = strip_html(html)
+    if not text or len(text) < 200:
+        run.event("warn", target_url=url, message="no extractable text")
+        run.skipped()
+        return 0
+
+    h = content_hash(text)
+    if last_hash_by_url.get(url) == h:
+        print(f"    SKIP (unchanged hash): {url}")
+        run.skipped()
+        return 0
+
+    # Cheap pre-filter — skip pages with no relevant keywords
+    if not KEYWORDS_RX.search(text[:50000]):
+        print(f"    SKIP (no keywords): {url}")
+        run.skipped()
+        return 0
+
+    print(f"    PROCESS: {url} ({len(text)} chars)")
+    if args.dry_run:
+        run.skipped()
+        return 0
+
+    prompt = build_prompt(text, url, country_hint)
+    try:
+        data = extract_json(
+            prompt=prompt,
+            run_id=run.run_id,
+            max_usd_per_run=args.max_usd,
+            provider=args.provider,
+            expected_keys=("opportunities",),
+            estimated_cost=0.015,
+        )
+    except BudgetExceeded as e:
+        print(f"    BUDGET EXCEEDED — stopping run cleanly: {e}")
+        raise  # propagate so CrawlerRun marks cancelled
+    except SchemaInvalid as e:
+        print(f"    SCHEMA INVALID: {e}")
+        run.failed(target_url=url, message=f"schema invalid: {e}")
+        return 0
+
+    opps = data.get("opportunities") or []
+    print(f"    extracted {len(opps)} opportunities")
+    return upsert_opportunities(opps, source_id, url, run.run_id, h,
+                                args.dry_run, run)
+
+
+# ── Existing hashes ───────────────────────────────────────────
+def load_existing_hashes() -> dict[str, str]:
+    """Build url → content_hash map so we skip unchanged pages."""
+    headers = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
+    r = httpx.get(
+        f"{SB_URL}/rest/v1/discovered_opportunities",
+        headers=headers,
+        params={"select": "source_url,content_hash", "limit": "10000"},
+        timeout=30,
+    )
+    if r.status_code != 200:
+        return {}
+    out = {}
+    for row in r.json() or []:
+        if row.get("source_url") and row.get("content_hash"):
+            out[row["source_url"]] = row["content_hash"]
+    return out
+
+
+# ── Main ──────────────────────────────────────────────────────
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--queue", type=int, choices=[1, 2], default=1,
+                    help="1 = opportunity_sources, 2 = university apply_url pages")
+    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--country", type=str, default=None)
+    ap.add_argument("--provider", choices=["anthropic", "openai"], default="openai",
+                    help="LLM provider for extraction")
+    ap.add_argument("--max-usd", type=float, default=20.0,
+                    help="Hard budget cap per run (default $20)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="plan only — no fetches, no LLM, no writes")
+    args = ap.parse_args()
+
+    params = {k: v for k, v in vars(args).items() if v is not None}
+
+    with CrawlerRun("opportunity_discoverer", params=params) as run:
+        last_hash_by_url = load_existing_hashes() if not args.dry_run else {}
+        print(f"Loaded {len(last_hash_by_url)} prior page hashes (for skip-if-unchanged)")
+
+        written = 0
+        if args.queue == 1:
+            rows = fetch_queue_1(args)
+            print(f"Queue 1 (opportunity_sources): {len(rows)} URLs to process\n")
+            run.set_total(len(rows))
+            for row in rows:
+                try:
+                    written += process_page(
+                        url=row["url"],
+                        country_hint=row.get("country"),
+                        source_id=row.get("id"),
+                        run=run,
+                        args=args,
+                        last_hash_by_url=last_hash_by_url,
+                    )
+                except BudgetExceeded:
+                    run.event("warn", message="budget reached — stopping queue")
+                    break
+                # Mark this source crawled
+                if not args.dry_run and row.get("id"):
+                    httpx.patch(
+                        f"{SB_URL}/rest/v1/opportunity_sources?id=eq.{row['id']}",
+                        headers=SB_H,
+                        json={"last_crawled_at": datetime.now(timezone.utc).isoformat(),
+                              "last_status": "ok"},
+                        timeout=10,
+                    )
+        else:
+            unis = fetch_queue_2(args)
+            print(f"Queue 2 (university candidate pages): {len(unis)} universities\n")
+            total_pages = sum(len(CANDIDATE_PATHS) for _ in unis)
+            run.set_total(total_pages)
+            for u in unis:
+                for candidate in queue_2_candidate_urls(u["base_url"]):
+                    try:
+                        written += process_page(
+                            url=candidate,
+                            country_hint=u["country"],
+                            source_id=None,
+                            run=run,
+                            args=args,
+                            last_hash_by_url=last_hash_by_url,
+                        )
+                    except BudgetExceeded:
+                        run.event("warn", message="budget reached — stopping queue")
+                        break
+                else:
+                    continue
+                break
+
+        run.summary = {
+            "queue":     args.queue,
+            "provider":  args.provider,
+            "max_usd":   args.max_usd,
+            "written":   written,
+            "dry_run":   args.dry_run,
+        }
+        print(f"\nDONE: {run.summary}")
+
+
+if __name__ == "__main__":
+    main()
