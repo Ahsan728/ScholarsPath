@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Sliders, Award } from "lucide-react"
+import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Award, Sliders } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
