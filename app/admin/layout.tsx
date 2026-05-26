@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { GraduationCap, BarChart2, Users, Zap, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library } from "lucide-react"
+import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,9 +18,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <BarChart2 className="h-4 w-4" /> Dashboard
           </Link>
-          <Link href="/admin/users" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
-            <Users className="h-4 w-4" /> Users
-          </Link>
           <Link href="/admin/payments" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <Receipt className="h-4 w-4" /> Payments
           </Link>
@@ -29,9 +26,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <Link href="/admin/feedback" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <MessageSquareWarning className="h-4 w-4" /> Feedback
-          </Link>
-          <Link href="/admin/usage" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
-            <Zap className="h-4 w-4" /> API Usage
           </Link>
           <Link href="/admin/crawlers" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <Bot className="h-4 w-4" /> Crawlers
