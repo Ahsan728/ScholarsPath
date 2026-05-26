@@ -41,7 +41,7 @@ export default async function AdminOpportunitiesPage({
 }) {
   // Build query with optional filters
   let query = adminSupabase
-    .from("opportunities")
+    .from("discovered_opportunities")
     .select("*")
     .order("last_seen_at", { ascending: false })
     .limit(200)
@@ -59,10 +59,10 @@ export default async function AdminOpportunitiesPage({
   let countriesCount = 0
   let typesBreakdown: Record<string, number> = {}
   if (!error) {
-    const { count: a } = await adminSupabase.from("opportunities")
+    const { count: a } = await adminSupabase.from("discovered_opportunities")
       .select("id", { count: "exact", head: true }).eq("is_active", true)
     totalActive = a ?? 0
-    const { count: t } = await adminSupabase.from("opportunities")
+    const { count: t } = await adminSupabase.from("discovered_opportunities")
       .select("id", { count: "exact", head: true })
     totalAll = t ?? 0
 
@@ -94,7 +94,7 @@ export default async function AdminOpportunitiesPage({
       {error && (
         <div className="mb-4 rounded-lg bg-amber-900/30 border border-amber-800 px-4 py-3 text-sm text-amber-300">
           {error.message?.includes("does not exist")
-            ? <>Table <code>opportunities</code> doesn't exist yet. Apply <code>scripts/opportunities_migration.sql</code> in Supabase SQL Editor.</>
+            ? <>Table <code>discovered_opportunities</code> doesn't exist yet. Apply <code>scripts/opportunities_migration.sql</code> in Supabase SQL Editor.</>
             : <>Failed to load: {error.message}</>}
         </div>
       )}

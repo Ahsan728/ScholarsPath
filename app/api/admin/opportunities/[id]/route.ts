@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "No allowed fields in request" }, { status: 400 })
   }
   const { error } = await adminSupabase
-    .from("opportunities").update(updates).eq("id", params.id)
+    .from("discovered_opportunities").update(updates).eq("id", params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = ensureAdmin(req); if (denied) return denied
   const { error } = await adminSupabase
-    .from("opportunities").delete().eq("id", params.id)
+    .from("discovered_opportunities").delete().eq("id", params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
