@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, MessageSquareWarning, GraduationCap, Receipt, ExternalLink } from "lucide-react"
+import Link from "next/link"
+import { Search, MessageSquareWarning, GraduationCap, Receipt } from "lucide-react"
 import type { UserRow } from "./page"
 
 interface Props {
@@ -96,10 +97,12 @@ export function UsersClient({ initial }: Props) {
             {filtered.map(u => (
               <tr key={u.id} className="border-b border-gray-800/60 last:border-0 hover:bg-gray-950/30 align-top">
                 <td className="px-4 py-3 max-w-xs">
-                  <p className="text-white font-medium">
-                    {u.full_name || <span className="text-gray-500 italic">(no name)</span>}
-                  </p>
-                  <p className="text-xs text-blue-400 break-all">{u.email}</p>
+                  <Link href={`/admin/users/${u.id}`} className="block hover:opacity-80">
+                    <p className="text-white font-medium">
+                      {u.full_name || <span className="text-gray-500 italic">(no name)</span>}
+                    </p>
+                    <p className="text-xs text-blue-400 break-all hover:underline">{u.email}</p>
+                  </Link>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${TIER_COLORS[u.tier] ?? TIER_COLORS.free}`}>
