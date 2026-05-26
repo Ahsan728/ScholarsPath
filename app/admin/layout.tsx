@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library } from "lucide-react"
+import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Award } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -26,6 +26,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <Link href="/admin/feedback" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <MessageSquareWarning className="h-4 w-4" /> Feedback
+          </Link>
+          <Link href="/admin/acceptances" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+            <Award className="h-4 w-4" /> Acceptances
           </Link>
           <Link href="/admin/crawlers" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
             <Bot className="h-4 w-4" /> Crawlers
