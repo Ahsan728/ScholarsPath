@@ -6,11 +6,14 @@ import { adminSupabase } from "@/lib/supabase"
 
 const ALLOWED_FIELDS = new Set([
   "apply_url", "source_url",
+  "program_name",
   "tuition_usd_year", "duration_years",
   "ielts_min", "gpa_min",
   "deadline", "intake", "language",
   "scholarship_available", "description",
   "is_active",
+  // Page Validator overrides — let admin clear/correct the verdict
+  "page_status", "suggested_new_name", "language_status",
 ])
 
 function ensureAdmin(req: NextRequest): NextResponse | null {
@@ -42,6 +45,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     updates.url_check_error = null
     updates.domain_match_status = null
     updates.domain_match_host = null
+    updates.domain_match_checked_at = null
+    updates.page_status = null
+    updates.page_checked_at = null
+  }
+  // If we're renaming the program, recompute fingerprint downstream (the
+  // Auditor will re-classify on next pass).
+  if ("program_name" in updates) {
+    updates.domain_match_status = null
     updates.domain_match_checked_at = null
   }
 
