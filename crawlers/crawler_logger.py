@@ -146,6 +146,29 @@ class CrawlerRun:
             print(f"[run] finish (no id): status={status}", flush=True)
             return
         duration_ms = int((time.time() - self.started_at) * 1000)
+
+        # Cost / token fields can be written DIRECTLY to the DB during the run
+        # by helpers like crawlers/ai/extract.py (which doesn't have a handle
+        # on this object). To avoid clobbering those writes with our in-memory
+        # zeros, read what's currently in the DB and take the max.
+        db_cost, db_in, db_out = 0.0, 0, 0
+        try:
+            cur = httpx.get(
+                f"{SB_URL}/rest/v1/crawler_runs",
+                headers={"apikey": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+                         "Authorization": f"Bearer {os.environ['SUPABASE_SERVICE_ROLE_KEY']}"},
+                params={"select": "cost_usd,tokens_in,tokens_out",
+                        "id": f"eq.{self.run_id}"},
+                timeout=10,
+            )
+            if cur.status_code == 200 and cur.json():
+                row = cur.json()[0]
+                db_cost = float(row.get("cost_usd")  or 0)
+                db_in   = int(row.get("tokens_in")   or 0)
+                db_out  = int(row.get("tokens_out")  or 0)
+        except Exception:
+            pass  # use in-memory values only
+
         body = {
             "status": status,
             "finished_at": _utcnow_iso(),
@@ -155,9 +178,10 @@ class CrawlerRun:
             "items_ok": self.items_ok,
             "items_failed": self.items_failed,
             "items_skipped": self.items_skipped,
-            "tokens_in": self.tokens_in,
-            "tokens_out": self.tokens_out,
-            "cost_usd": round(self.cost_usd, 4),
+            # Take the max of in-memory vs already-on-DB so neither path loses
+            "tokens_in":  max(self.tokens_in,  db_in),
+            "tokens_out": max(self.tokens_out, db_out),
+            "cost_usd":   round(max(self.cost_usd, db_cost), 4),
             "summary": self.summary,
             "error_message": error_message,
         }
@@ -168,6 +192,6 @@ class CrawlerRun:
             )
             print(f"[run] {self.crawler} {status} ({duration_ms}ms) "
                   f"ok={self.items_ok} failed={self.items_failed} "
-                  f"skipped={self.items_skipped}", flush=True)
+                  f"skipped={self.items_skipped} cost=${body['cost_usd']}", flush=True)
         except Exception as e:
             print(f"[run] WARN could not log finish: {e}", flush=True)
