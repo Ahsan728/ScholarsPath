@@ -34,26 +34,37 @@ export async function getActiveMastersPrograms(
 
 export async function getActivePrograms(filters: ProgramFilters = {}): Promise<{ programs: MastersProgram[]; total: number }> {
   const {
-    level, category, country, free_only, scholarship_only,
+    level, category, country, free_only, scholarship_only, emjm_only,
     query, page = 1, limit = 24,
   } = filters
-
-  const countryFilter = country && country.length > 0 ? country : EUROPEAN_COUNTRIES
 
   let q = adminSupabase
     .from("masters_programs")
     .select("*", { count: "exact" })
     .eq("is_active", true)
-    .in("country", countryFilter)
+
+  // When emjm_only is on, country filter is intentionally ignored — EMJM
+  // programs are multi-country consortia and our country column only
+  // stores the "primary" country. They'd be missed by an .in('country', …).
+  if (!emjm_only) {
+    const countryFilter = country && country.length > 0 ? country : EUROPEAN_COUNTRIES
+    q = q.in("country", countryFilter)
+  }
 
   if (level && level !== "all") q = q.eq("level", level)
   if (category && category !== "all") q = q.eq("category", category)
   if (free_only) q = q.or("tuition_usd_year.is.null,tuition_usd_year.eq.0")
   if (scholarship_only) q = q.eq("scholarship_available", true)
+  if (emjm_only) q = q.eq("program_type", "erasmus_mundus_joint")
   if (query) q = q.ilike("program_name", `%${query}%`)
 
   const from = (page - 1) * limit
-  q = q.range(from, from + limit - 1).order("qs_ranking", { ascending: true, nullsFirst: false })
+  // Pin EMJM to the top of the default listing — they're always more
+  // prestigious + funded; users should see them first when no specific
+  // filter is applied.
+  q = q.range(from, from + limit - 1)
+       .order("program_type", { ascending: false })  // 'erasmus_mundus_joint' > 'standard'
+       .order("qs_ranking",   { ascending: true, nullsFirst: false })
 
   const { data, error, count } = await q
   if (error) throw new Error(`Failed to fetch programs: ${error.message}`)

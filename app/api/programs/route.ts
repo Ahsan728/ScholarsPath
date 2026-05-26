@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       country: searchParams.get("country") ? searchParams.get("country")!.split(",") : undefined,
       free_only: searchParams.get("free_only") === "true",
       scholarship_only: searchParams.get("scholarship_only") === "true",
+      emjm_only: searchParams.get("emjm_only") === "true",
       query: searchParams.get("q") ?? undefined,
       page: parseInt(searchParams.get("page") ?? "1", 10),
       limit: parseInt(searchParams.get("limit") ?? "24", 10),

@@ -45,6 +45,7 @@ export default function ProgramBrowser() {
   const countryParam = searchParams.get("country") ?? ""
   const freeOnly     = searchParams.get("free_only") === "true"
   const scholarOnly  = searchParams.get("scholarship_only") === "true"
+  const emjmOnly     = searchParams.get("emjm_only") === "true"
   const query        = searchParams.get("q") ?? ""
   const page         = parseInt(searchParams.get("page") ?? "1", 10)
 
@@ -66,11 +67,12 @@ export default function ProgramBrowser() {
     if (countryParam)    p.set("country", countryParam)
     if (freeOnly)        p.set("free_only", "true")
     if (scholarOnly)     p.set("scholarship_only", "true")
+    if (emjmOnly)        p.set("emjm_only", "true")
     if (query)           p.set("q", query)
     p.set("page",  String(page))
     p.set("limit", "24")
     return `/api/programs?${p}`
-  }, [level, category, countryParam, freeOnly, scholarOnly, query, page])
+  }, [level, category, countryParam, freeOnly, scholarOnly, emjmOnly, query, page])
 
   useEffect(() => {
     setLoading(true)
@@ -88,6 +90,7 @@ export default function ProgramBrowser() {
     if (countryParam)    merged.country  = countryParam
     if (freeOnly)        merged.free_only = "true"
     if (scholarOnly)     merged.scholarship_only = "true"
+    if (emjmOnly)        merged.emjm_only = "true"
     if (query)           merged.q = query
     Object.assign(merged, overrides)
     const p = new URLSearchParams(
@@ -180,6 +183,15 @@ export default function ProgramBrowser() {
             scholarOnly ? ACTIVE : INACTIVE
           }`}>
           Scholarship Available
+        </Link>
+        <Link href={buildUrl({ emjm_only: emjmOnly ? undefined : "true", page: undefined })}
+          onClick={() => setMobileFiltersOpen(false)}
+          className={`text-xs font-bold px-3 py-1.5 rounded-full border-2 transition-colors ${
+            emjmOnly
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+          }`}>
+          ✨ Erasmus Mundus only
         </Link>
         {activeFilterCount > 0 && (
           <Link href="/programs"
