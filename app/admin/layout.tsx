@@ -1,9 +1,5 @@
 import Link from "next/link"
-<<<<<<< HEAD
-import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Sliders } from "lucide-react"
-=======
-import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Award } from "lucide-react"
->>>>>>> main
+import { GraduationCap, BarChart2, LogOut, UserCheck, Receipt, MessageSquareWarning, Bot, Library, Award, Sliders } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
