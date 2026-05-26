@@ -2,6 +2,8 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { adminSupabase } from "@/lib/supabase"
 import { ReportIssueButton } from "@/components/ReportIssueButton"
+import { ReportAcceptanceButton } from "@/components/ReportAcceptanceButton"
+import { AcceptanceBadge } from "@/components/AcceptanceBadge"
 import type { MastersProgram } from "@/types"
 
 const countryFlags: Record<string, string> = {
@@ -118,10 +120,16 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
                 Program Page
               </a>
             )}
-            <div className="ml-auto">
+            <div className="ml-auto flex gap-2 flex-wrap">
+              <ReportAcceptanceButton program={{ id: program.id, program_name: program.program_name }} />
               <ReportIssueButton program={{ id: program.id, program_name: program.program_name }} />
             </div>
           </div>
+        </div>
+
+        {/* Student acceptance badge (anonymous aggregates) */}
+        <div className="mb-6">
+          <AcceptanceBadge programId={program.id} />
         </div>
 
         {/* Details */}
