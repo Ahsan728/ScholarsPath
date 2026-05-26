@@ -42,32 +42,58 @@ export default function ProgramCard({ program }: Props) {
     ? "Free / Regulated"
     : `€${program.tuition_usd_year!.toLocaleString()}/yr`
 
+  const isEmjm = program.program_type === "erasmus_mundus_joint"
+  // Multi-country flag display for EMJM
+  const emjmFlags = isEmjm && program.consortium_countries?.length
+    ? program.consortium_countries.slice(0, 4).map(c => countryFlags[c] ?? "🌍").join(" ")
+    : null
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+    <div className={`rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full ${
+      isEmjm
+        ? "bg-blue-50 border-2 border-blue-500 ring-1 ring-blue-200"
+        : "bg-white border border-gray-200"
+    }`}>
       {/* Header */}
       <div className="p-4 pb-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${levelColors[level] ?? levelColors.master}`}>
-            {levelLabel}
-          </span>
+        <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+          {isEmjm ? (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white inline-flex items-center gap-1">
+              ✨ Erasmus Mundus
+            </span>
+          ) : (
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${levelColors[level] ?? levelColors.master}`}>
+              {levelLabel}
+            </span>
+          )}
           {program.scholarship_available && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
-              Scholarship
+              {isEmjm ? "Fully funded" : "Scholarship"}
             </span>
           )}
         </div>
 
         <p className="text-sm text-gray-500 mb-1">
-          {flag} {program.city}, {program.country}
-          {program.qs_ranking && (
-            <span className="ml-2 text-xs text-gray-400">QS #{program.qs_ranking}</span>
+          {emjmFlags ? (
+            <>
+              {emjmFlags} <span className="text-blue-700">Multi-country consortium</span>
+            </>
+          ) : (
+            <>
+              {flag} {program.city}, {program.country}
+              {program.qs_ranking && (
+                <span className="ml-2 text-xs text-gray-400">QS #{program.qs_ranking}</span>
+              )}
+            </>
           )}
         </p>
 
         <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
-          {program.university}
+          {isEmjm && program.consortium_universities?.length
+            ? program.consortium_universities.slice(0, 2).join(" + ") + (program.consortium_universities.length > 2 ? " + " + (program.consortium_universities.length - 2) + " more" : "")
+            : program.university}
         </h3>
-        <p className="text-blue-700 font-medium text-sm mt-0.5 line-clamp-2">
+        <p className={`font-medium text-sm mt-0.5 line-clamp-2 ${isEmjm ? "text-blue-800" : "text-blue-700"}`}>
           {program.program_name}
         </p>
       </div>

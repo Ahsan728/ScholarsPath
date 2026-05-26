@@ -61,17 +61,27 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
         </Link>
 
         {/* Header card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
+        <div className={`rounded-2xl shadow-sm p-6 mb-6 ${
+          program.program_type === "erasmus_mundus_joint"
+            ? "bg-blue-50 border-2 border-blue-500 ring-1 ring-blue-200"
+            : "bg-white border border-gray-200"
+        }`}>
           <div className="flex flex-wrap gap-2 mb-3">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${levelColors[level] ?? levelColors.master}`}>
-              {levelLabel}
-            </span>
-            {program.scholarship_available && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                Scholarship Available
+            {program.program_type === "erasmus_mundus_joint" ? (
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white inline-flex items-center gap-1">
+                ✨ Erasmus Mundus Joint Masters
+              </span>
+            ) : (
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${levelColors[level] ?? levelColors.master}`}>
+                {levelLabel}
               </span>
             )}
-            {isFree && (
+            {program.scholarship_available && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                {program.program_type === "erasmus_mundus_joint" ? "Fully funded €1,400/mo + tuition + travel" : "Scholarship Available"}
+              </span>
+            )}
+            {isFree && program.program_type !== "erasmus_mundus_joint" && (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800">
                 Free / Regulated Tuition
               </span>
@@ -79,11 +89,43 @@ export default async function ProgramDetailPage({ params }: { params: { id: stri
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">{program.program_name}</h1>
-          <p className="text-lg text-blue-700 font-medium mb-2">{program.university}</p>
+
+          {program.program_type === "erasmus_mundus_joint" && program.consortium_universities && program.consortium_universities.length > 0 ? (
+            <div className="mb-2">
+              <p className="text-sm text-blue-700 font-medium mb-1">Consortium ({program.consortium_universities.length} partners):</p>
+              <ul className="text-sm text-gray-700 space-y-0.5">
+                {program.consortium_universities.map((uni, i) => (
+                  <li key={i} className="flex items-baseline gap-2">
+                    <span className="text-blue-500">•</span>
+                    <span>{uni}{program.consortium_countries?.[i] && (
+                      <span className="text-gray-500 ml-2 text-xs">
+                        {countryFlags[program.consortium_countries[i]] ?? "🌍"} {program.consortium_countries[i]}
+                      </span>
+                    )}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-lg text-blue-700 font-medium mb-2">{program.university}</p>
+          )}
+
           <p className="text-gray-500">
-            {flag} {program.city}, {program.country}
-            {program.qs_ranking && (
-              <span className="ml-3 text-sm">· QS Ranking #{program.qs_ranking}</span>
+            {program.program_type === "erasmus_mundus_joint" && program.consortium_countries?.length ? (
+              <>
+                {program.consortium_countries.slice(0, 4).map(c => countryFlags[c] ?? "🌍").join(" ")}{" "}
+                <span className="text-blue-700">Multi-country</span>
+                {program.emjm_application_window && (
+                  <span className="ml-3 text-sm">· Apply: {program.emjm_application_window}</span>
+                )}
+              </>
+            ) : (
+              <>
+                {flag} {program.city}, {program.country}
+                {program.qs_ranking && (
+                  <span className="ml-3 text-sm">· QS Ranking #{program.qs_ranking}</span>
+                )}
+              </>
             )}
           </p>
 

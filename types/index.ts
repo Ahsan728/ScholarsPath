@@ -117,6 +117,14 @@ export interface MastersProgram {
   is_active: boolean
   created_at: string
   updated_at?: string
+  // Erasmus Mundus Joint Masters fields (Phase E)
+  program_type?: 'standard' | 'erasmus_mundus_joint' | 'erasmus_mundus_design'
+  consortium_universities?: string[]
+  consortium_countries?: string[]
+  emjm_code?: string | null
+  emjm_scholarship_eur?: number | null
+  emjm_intake_starts?: string | null
+  emjm_application_window?: string | null
 }
 
 export interface ProgramFilters {
@@ -125,6 +133,7 @@ export interface ProgramFilters {
   country?: string[]
   free_only?: boolean
   scholarship_only?: boolean
+  emjm_only?: boolean
   query?: string
   page?: number
   limit?: number
