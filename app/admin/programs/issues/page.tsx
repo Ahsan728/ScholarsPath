@@ -16,15 +16,24 @@ export interface IssueRow {
   domain_match_status: string | null
   domain_match_host: string | null
   is_active: boolean
+  page_status: string | null
+  language_status: string | null
+  page_title: string | null
+  suggested_new_name: string | null
+  detected_languages: string[] | null
 }
 
 const FILTERS = {
-  all_issues: { label: "All issues", description: "Any URL or domain problem" },
-  mismatch:   { label: "Domain mismatch", description: "URL host ≠ university" },
-  aggregator: { label: "Aggregator URLs", description: "Linking to mastersportal etc." },
-  dead:       { label: "Dead URLs", description: "HTTP 4xx/5xx or unreachable" },
-  wrong_domain: { label: "Wrong domain", description: "Redirects to aggregator/unrelated site" },
-  no_url:     { label: "No URL", description: "apply_url missing or invalid" },
+  all_issues:    { label: "All issues",       description: "Any URL / domain / page problem" },
+  closed:        { label: "Closed",           description: "Page says program is discontinued" },
+  non_english:   { label: "Non-English",      description: "Program not taught in English" },
+  name_changed:  { label: "Name changed",     description: "Page advertises a different name" },
+  generic_page:  { label: "Generic page",     description: "URL is right uni but wrong page" },
+  mismatch:      { label: "Domain mismatch",  description: "URL host ≠ university" },
+  aggregator:    { label: "Aggregator URLs",  description: "Linking to mastersportal etc." },
+  dead:          { label: "Dead URLs",        description: "HTTP 4xx/5xx or unreachable" },
+  wrong_domain:  { label: "Wrong domain",     description: "Redirects to unrelated site" },
+  no_url:        { label: "No URL",           description: "apply_url missing or invalid" },
 } as const
 
 type FilterKey = keyof typeof FILTERS
@@ -35,12 +44,17 @@ export const revalidate = 0
 async function loadIssues(filter: FilterKey, country: string | null, offset: number, pageSize: number) {
   const cols = "id, program_name, university, country, apply_url, source_url, " +
                "url_status, url_http_code, url_checked_at, url_check_error, " +
-               "domain_match_status, domain_match_host, is_active"
+               "domain_match_status, domain_match_host, is_active, " +
+               "page_status, language_status, page_title, suggested_new_name, detected_languages"
 
   // Build the query for COUNT and SELECT in parallel
   function applyFilter(q: any) {
     if (country) q = q.eq("country", country)
     switch (filter) {
+      case "closed":       return q.eq("page_status", "closed")
+      case "non_english":  return q.eq("page_status", "specific_non_english")
+      case "name_changed": return q.eq("page_status", "name_changed")
+      case "generic_page": return q.eq("page_status", "generic_page")
       case "mismatch":     return q.eq("domain_match_status", "mismatch")
       case "aggregator":   return q.eq("domain_match_status", "aggregator")
       case "dead":         return q.eq("url_status", "dead")
@@ -48,10 +62,10 @@ async function loadIssues(filter: FilterKey, country: string | null, offset: num
       case "no_url":       return q.eq("domain_match_status", "no_url")
       case "all_issues":
       default:
-        // Either domain flag or url flag indicates a problem
         return q.or(
           "domain_match_status.in.(mismatch,aggregator,no_url)," +
-          "url_status.in.(dead,wrong_domain,timeout)"
+          "url_status.in.(dead,wrong_domain,timeout)," +
+          "page_status.in.(closed,specific_non_english,name_changed,generic_page)"
         )
     }
   }

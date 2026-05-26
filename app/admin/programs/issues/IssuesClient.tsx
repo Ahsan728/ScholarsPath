@@ -140,10 +140,45 @@ export function IssuesClient({ rows, filter }: Props) {
                         {r.url_check_error.slice(0, 50)}
                       </span>
                     )}
+                    {/* Page Validator flags */}
+                    {r.page_status && r.page_status !== "specific_english" && (
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded inline-block w-fit ${
+                        r.page_status === "closed" ? "bg-red-900/50 text-red-200"
+                          : r.page_status === "specific_non_english" ? "bg-purple-900/50 text-purple-200"
+                          : r.page_status === "name_changed" ? "bg-blue-900/50 text-blue-200"
+                          : r.page_status === "generic_page" ? "bg-amber-900/50 text-amber-200"
+                          : "bg-gray-800 text-gray-300"
+                      }`}>
+                        {r.page_status.replace(/_/g, " ")}
+                      </span>
+                    )}
+                    {r.language_status && r.language_status !== "english_only" && r.language_status !== "unknown" && (
+                      <span className="text-[10px] text-gray-400">
+                        🌐 {r.detected_languages?.join(", ") || r.language_status}
+                      </span>
+                    )}
+                    {r.page_status === "name_changed" && r.suggested_new_name && (
+                      <div className="text-[11px] mt-1 p-1.5 bg-blue-950/30 border border-blue-900/40 rounded">
+                        <span className="text-blue-400">Page says:</span> <span className="text-blue-200 italic">{r.suggested_new_name.slice(0, 100)}</span>
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td className="px-3 py-3 text-right whitespace-nowrap">
                   <div className="inline-flex gap-1">
+                    {r.page_status === "name_changed" && r.suggested_new_name && (
+                      <button
+                        onClick={() => {
+                          if (!confirm(`Rename to:\n${r.suggested_new_name}\n\nThis updates the program's stored name to match the page.`)) return
+                          update(r.id, { program_name: r.suggested_new_name, page_status: "specific_english", suggested_new_name: null }, "Rename")
+                        }}
+                        disabled={busyId !== null}
+                        className="p-1.5 text-blue-400 hover:bg-blue-900/30 rounded disabled:opacity-30"
+                        title="Apply the suggested name from the page"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => { setEditId(r.id); setEditValue(r.apply_url ?? "") }}
                       disabled={busyId !== null}
