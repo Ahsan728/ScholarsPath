@@ -136,54 +136,48 @@ Page text:
         return []
 
 
-# ── Stage 2: extract structured detail from one program ─────
+# ── Stage 2: structured detail (LLM-knowledge mode, no fetch) ─
+# EACEA's catalogue is JS-rendered, so the "detail" URLs we extract in
+# stage 1 just point back to the catalogue. Instead of trying to scrape
+# the detail page, we ask Haiku to recall structured info about the
+# program by name — its training data covers the EMJM catalogue well.
 def extract_program_detail(url: str, title_hint: str, run: CrawlerRun) -> Optional[dict]:
-    html = fetch(url)
-    if not html:
+    if not title_hint or len(title_hint) < 5:
         return None
-    text = strip_html(html)[:14000]
 
-    prompt = f"""Extract structured data for this Erasmus Mundus Joint Masters program. Reply with ONLY valid JSON:
+    prompt = f"""You are an expert on the Erasmus Mundus Joint Masters (EMJM) programme catalogue. Given a program title, fill in structured data using your knowledge. Reply with ONLY valid JSON, no prose:
 
 {{
-  "program_name":           "<official program name>",
-  "description":            "<1-3 sentences>",
+  "program_name":           "<full official name>",
+  "description":            "<1-3 sentences explaining the program focus>",
   "consortium_universities": ["University 1", "University 2", "..."],
   "consortium_countries":    ["Germany", "Italy", "..."],
-  "field_of_study":          ["broad field 1", "field 2"],
-  "duration_years":          <2 typical>,
-  "ielts_min":               <number or null>,
-  "intake":                  "<e.g. 'Fall 2026' or null>",
-  "deadline":                "<YYYY-MM-DD or null>",
-  "emjm_application_window": "<verbatim window string or null>",
-  "emjm_code":               "<EACEA code if visible, e.g. EMJM-XXXXX, or null>",
-  "apply_url":               "<direct apply URL — usually on consortium site, NOT eacea>"
+  "field_of_study":          ["broad field"],
+  "duration_years":          2,
+  "ielts_min":               null,
+  "intake":                  "Annual (Sep)",
+  "deadline":                null,
+  "emjm_application_window": null,
+  "emjm_code":               null,
+  "apply_url":               "<consortium homepage URL or program-specific URL if you know it; otherwise the EACEA catalogue link>"
 }}
 
-Rules:
-- description: paraphrase, don't copy headers
-- consortium_countries: full English country names
-- duration_years: usually 2; never invent
-- apply_url: link to the consortium's actual application page; only use the eacea URL if no other link is given
+CRITICAL: Only return data if you genuinely recognise this Erasmus Mundus Joint Masters program. If unsure, return {{"program_name": ""}} and we'll skip it. Do NOT invent universities or countries — leaving consortium_universities empty is better than guessing wrong.
 
-Title hint (use as fallback): {title_hint}
-Source URL: {url}
-
-Page text:
-{text}"""
+Program title: {title_hint}
+EACEA catalogue URL: {url}"""
     try:
         data = extract_json(
             prompt=prompt, run_id=run.run_id,
             max_usd_per_run=2.0, provider="anthropic",
-            expected_keys=("program_name",), estimated_cost=0.008,
+            expected_keys=("program_name",), estimated_cost=0.005,
         )
-        # Sanity check + light cleanup
-        if not data.get("program_name"):
+        if not data.get("program_name") or not data.get("consortium_universities"):
             return None
         data["source_url"] = url
         return data
     except (BudgetExceeded, SchemaInvalid) as e:
-        print(f"  extract failed for {url}: {e}", flush=True)
+        print(f"  extract failed for {title_hint[:60]}: {e}", flush=True)
         return None
 
 
