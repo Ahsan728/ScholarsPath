@@ -26,12 +26,22 @@ export function ReportAcceptanceButton({ program }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone]   = useState(false)
 
-  // form
+  // form — outcome
   const [status, setStatus]       = useState("accepted")
   const [country, setCountry]     = useState("")
   const [year, setYear]           = useState("")
   const [semester, setSemester]   = useState("")
   const [notes, setNotes]         = useState("")
+  // form — profile snapshot
+  const [gpa, setGpa]             = useState("")
+  const [gpaScale, setGpaScale]   = useState("4.0")
+  const [ielts, setIelts]         = useState("")
+  const [toefl, setToefl]         = useState("")
+  const [pubCount, setPubCount]   = useState("")
+  const [pubText, setPubText]     = useState("")
+  const [bSubject, setBSubject]   = useState("")
+  const [bUni, setBUni]           = useState("")
+  const [showProfile, setShowProfile] = useState(false)
 
   async function openModal() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -56,6 +66,14 @@ export function ReportAcceptanceButton({ program }: Props) {
           intake_year:     year     ? Number(year) : null,
           intake_semester: semester || null,
           notes:           notes.trim() || null,
+          gpa:                 gpa      ? Number(gpa) : null,
+          gpa_scale:           gpaScale ? Number(gpaScale) : null,
+          ielts_score:         ielts    ? Number(ielts) : null,
+          toefl_score:         toefl    ? Number(toefl) : null,
+          publications_count:  pubCount ? Number(pubCount) : null,
+          publications_text:   pubText.trim()  || null,
+          bachelor_subject:    bSubject.trim() || null,
+          bachelor_university: bUni.trim()     || null,
         }),
       })
       const j = await r.json().catch(() => ({}))
@@ -186,6 +204,120 @@ export function ReportAcceptanceButton({ program }: Props) {
                         <option value="Summer">Summer</option>
                       </select>
                     </div>
+                  </div>
+
+                  {/* Profile snapshot — collapsible */}
+                  <div className="border-t pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowProfile(s => !s)}
+                      className="text-xs text-purple-700 hover:text-purple-900 font-medium"
+                    >
+                      {showProfile ? "▼" : "▶"} Add your profile (optional — helps future applicants)
+                    </button>
+                    {showProfile && (
+                      <div className="space-y-3 mt-3">
+                        <p className="text-[11px] text-gray-500">
+                          Anonymous medians (GPA / IELTS / pubs) are shown on the program page.
+                          Your exact values are never displayed publicly.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="block text-xs font-medium text-gray-700 mb-1">CGPA</label>
+                            <input
+                              type="number" step="0.01" min={0} max={10}
+                              value={gpa}
+                              onChange={(e) => setGpa(e.target.value)}
+                              placeholder="3.33"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Scale</label>
+                            <select
+                              value={gpaScale}
+                              onChange={(e) => setGpaScale(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="4.0">/ 4.0</option>
+                              <option value="5.0">/ 5.0</option>
+                              <option value="10.0">/ 10.0</option>
+                              <option value="100">/ 100</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">IELTS</label>
+                            <input
+                              type="number" step="0.5" min={0} max={9}
+                              value={ielts}
+                              onChange={(e) => setIelts(e.target.value)}
+                              placeholder="6.5"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">TOEFL <span className="text-gray-400">(alt.)</span></label>
+                            <input
+                              type="number" min={0} max={120}
+                              value={toefl}
+                              onChange={(e) => setToefl(e.target.value)}
+                              placeholder="95"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1"># of publications</label>
+                          <input
+                            type="number" min={0} max={999}
+                            value={pubCount}
+                            onChange={(e) => setPubCount(e.target.value)}
+                            placeholder="0"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                        </div>
+                        {pubCount && Number(pubCount) > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Publication titles (optional)</label>
+                            <textarea
+                              value={pubText}
+                              onChange={(e) => setPubText(e.target.value)}
+                              rows={2}
+                              placeholder="One title per line"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"
+                            />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Bachelor subject</label>
+                            <input
+                              type="text"
+                              value={bSubject}
+                              onChange={(e) => setBSubject(e.target.value)}
+                              placeholder="Computer Science"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Bachelor university</label>
+                            <input
+                              type="text"
+                              value={bUni}
+                              onChange={(e) => setBUni(e.target.value)}
+                              placeholder="BUET, DU…"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
