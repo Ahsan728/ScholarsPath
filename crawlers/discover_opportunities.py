@@ -4,7 +4,7 @@ Opportunity Discoverer (Phase C, Agent #6)
 
 Crawls trusted source URLs and university scholarship/funding/PhD pages,
 extracts structured opportunity rows via OpenAI gpt-4o-mini (or Anthropic
-Haiku as a fallback), and upserts into the `opportunities` table.
+Haiku as a fallback), and upserts into the `discovered_opportunities` table.
 
 ⚠️  This is the only big-spend agent in the pipeline. Enforced safeguards:
   - Hard $/run cap via crawlers/ai/extract.py::assert_budget (raises
@@ -271,7 +271,7 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
             continue
 
         r = httpx.post(
-            f"{SB_URL}/rest/v1/opportunities",
+            f"{SB_URL}/rest/v1/discovered_opportunities",
             headers={**SB_H, "Prefer": "return=minimal,resolution=merge-duplicates"},
             json=record, timeout=30,
         )
@@ -346,7 +346,7 @@ def load_existing_hashes() -> dict[str, str]:
     """Build url → content_hash map so we skip unchanged pages."""
     headers = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
     r = httpx.get(
-        f"{SB_URL}/rest/v1/opportunities",
+        f"{SB_URL}/rest/v1/discovered_opportunities",
         headers=headers,
         params={"select": "source_url,content_hash", "limit": "10000"},
         timeout=30,

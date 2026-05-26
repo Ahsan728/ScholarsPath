@@ -1,9 +1,14 @@
 -- ============================================================
--- Opportunities Migration (Phase C)
+-- Discovered Opportunities Migration (Phase C)
 --
 -- Stores scholarship / funding / PhD / grant rows extracted by the
 -- opportunity_discoverer agent from opportunity_sources URLs and from
 -- valid university program pages.
+--
+-- ⚠️  Renamed from `opportunities` to `discovered_opportunities` to avoid
+--    colliding with the legacy `opportunities` table from scripts/schema.sql
+--    (the original RAG dataset queried by the homepage, search, alerts,
+--    and CV evaluation flows).
 --
 -- Run AFTER:
 --   scripts/opportunity_sources_migration.sql  (source registry table)
@@ -12,7 +17,7 @@
 -- Run in Supabase SQL Editor.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS opportunities (
+CREATE TABLE IF NOT EXISTS discovered_opportunities (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Provenance
@@ -67,23 +72,23 @@ CREATE TABLE IF NOT EXISTS opportunities (
 );
 
 -- Dedup: same opp shouldn't appear twice from the same source page
-CREATE UNIQUE INDEX IF NOT EXISTS idx_opp_dedup
-  ON opportunities (lower(coalesce(university, '')), country, type, lower(title));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_disc_dedup
+  ON discovered_opportunities (lower(coalesce(university, '')), country, type, lower(title));
 
-CREATE INDEX IF NOT EXISTS idx_opp_country     ON opportunities (country);
-CREATE INDEX IF NOT EXISTS idx_opp_type        ON opportunities (type);
-CREATE INDEX IF NOT EXISTS idx_opp_deadline    ON opportunities (deadline);
-CREATE INDEX IF NOT EXISTS idx_opp_active      ON opportunities (is_active, last_seen_at DESC);
-CREATE INDEX IF NOT EXISTS idx_opp_source      ON opportunities (source_id);
-CREATE INDEX IF NOT EXISTS idx_opp_content_hash ON opportunities (content_hash);
+CREATE INDEX IF NOT EXISTS idx_disc_country     ON discovered_opportunities (country);
+CREATE INDEX IF NOT EXISTS idx_disc_type        ON discovered_opportunities (type);
+CREATE INDEX IF NOT EXISTS idx_disc_deadline    ON discovered_opportunities (deadline);
+CREATE INDEX IF NOT EXISTS idx_disc_active      ON discovered_opportunities (is_active, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_disc_source      ON discovered_opportunities (source_id);
+CREATE INDEX IF NOT EXISTS idx_disc_content_hash ON discovered_opportunities (content_hash);
 
-ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discovered_opportunities ENABLE ROW LEVEL SECURITY;
 
--- Public read (active rows only) — students can browse opportunities on
+-- Public read (active rows only) — students can browse discovered_opportunities on
 -- the live site without auth. Service role bypasses RLS.
-DROP POLICY IF EXISTS "anyone read active" ON opportunities;
-CREATE POLICY "anyone read active" ON opportunities
+DROP POLICY IF EXISTS "anyone read active" ON discovered_opportunities;
+CREATE POLICY "anyone read active" ON discovered_opportunities
   FOR SELECT USING (is_active = true);
 
-GRANT ALL ON opportunities TO service_role;
-GRANT SELECT ON opportunities TO anon, authenticated;
+GRANT ALL ON discovered_opportunities TO service_role;
+GRANT SELECT ON discovered_opportunities TO anon, authenticated;
