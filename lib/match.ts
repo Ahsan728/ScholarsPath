@@ -223,17 +223,25 @@ export function scoreAndRankPrograms(
     const lang = langScore(program, profile)
     const country = countryScore(program, profile)
 
-    const total = field.pts + gpa.pts + lang.pts + country
+    // EMJM boost: fully funded programs get +15 points (effectively +25%
+    // on a typical 60-point score). This surfaces them higher in results
+    // because they're objectively better outcomes — €1,400/month stipend
+    // + tuition + travel covered.
+    const isEmjm = program.program_type === "erasmus_mundus_joint"
+    const emjmBonus = isEmjm ? 15 : 0
+
+    const total = field.pts + gpa.pts + lang.pts + country + emjmBonus
     const gpa4 = toGPA4(profile.gpa, profile.gpa_scale)
     const programGpa4 = program.gpa_min ? toGPA4(program.gpa_min, program.gpa_scale) : 0
 
     const reasons: string[] = []
     const concerns: string[] = []
 
+    if (isEmjm) reasons.push("✨ Erasmus Mundus — fully funded (€1,400/month + tuition + travel)")
     if (field.reason) reasons.push(field.reason)
     if (gpa.pts >= 30) reasons.push(`GPA meets requirement (${gpa4.toFixed(2)}/4.0 ≥ ${programGpa4.toFixed(2)})`)
     if (lang.pts === 20) reasons.push("English proficiency meets requirement")
-    if (program.scholarship_available) reasons.push("Scholarship / funding available")
+    if (program.scholarship_available && !isEmjm) reasons.push("Scholarship / funding available")
     if (program.tuition_usd_year === null || program.tuition_usd_year === 0) reasons.push("No tuition fees")
     if (profile.countries.includes(program.country)) reasons.push(`${program.country} is in your preferred countries`)
 
