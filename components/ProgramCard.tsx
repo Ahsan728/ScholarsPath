@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import type { MastersProgram } from "@/types"
+import { SaveProgramButton } from "@/components/SaveProgramButton"
 
 const countryFlags: Record<string, string> = {
   Germany: "🇩🇪", France: "🇫🇷", Italy: "🇮🇹", Netherlands: "🇳🇱",
@@ -31,9 +32,10 @@ const categoryLabels: Record<string, string> = {
 
 interface Props {
   program: MastersProgram
+  savedIds?: Set<string>
 }
 
-export default function ProgramCard({ program }: Props) {
+export default function ProgramCard({ program, savedIds }: Props) {
   const flag = countryFlags[program.country] ?? "🌍"
   const level = program.level ?? "master"
   const levelLabel = level.charAt(0).toUpperCase() + level.slice(1)
@@ -57,6 +59,7 @@ export default function ProgramCard({ program }: Props) {
       {/* Header */}
       <div className="p-4 pb-3">
         <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap flex-1">
           {isEmjm ? (
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white inline-flex items-center gap-1">
               ✨ Erasmus Mundus
@@ -71,6 +74,8 @@ export default function ProgramCard({ program }: Props) {
               {isEmjm ? "Fully funded" : "Scholarship"}
             </span>
           )}
+          </div>
+          {savedIds && <SaveProgramButton programId={program.id} initialSaved={savedIds.has(program.id)} />}
         </div>
 
         <p className="text-sm text-gray-500 mb-1">
