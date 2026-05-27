@@ -339,6 +339,46 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
 
 
 # ── Upsert programs ───────────────────────────────────────────
+def _match_program_urls(progs: list[dict], links_section: str, source_url: str) -> None:
+    """Match each extracted program to its specific page URL using text
+    similarity between program names and link anchor text. Modifies
+    progs in-place."""
+    # Parse links_section back into (text, url) pairs
+    link_pairs: list[tuple[str, str]] = []
+    for line in links_section.strip().split("\n"):
+        m = re.match(r"\s*\[(.+?)\]\((.+?)\)", line)
+        if m:
+            link_pairs.append((m.group(1).lower().strip(), m.group(2).strip()))
+    if not link_pairs:
+        return
+
+    for p in progs:
+        name = (p.get("program_name") or "").lower().strip()
+        if not name:
+            continue
+        # Already has a non-listing-page URL? Keep it.
+        existing = p.get("apply_url") or ""
+        if existing and existing != source_url and existing.startswith("http"):
+            continue
+        # Find best match: link text that contains most of the program name
+        # or program name contains most of the link text
+        best_url = None
+        best_score = 0
+        name_words = set(re.findall(r"[a-z]+", name)) - {"master", "in", "of", "the", "and", "a"}
+        for link_text, link_url in link_pairs:
+            if link_url == source_url:
+                continue
+            link_words = set(re.findall(r"[a-z]+", link_text)) - {"master", "in", "of", "the", "and", "a"}
+            if not link_words:
+                continue
+            overlap = len(name_words & link_words)
+            score = overlap / max(len(name_words), 1)
+            if score > best_score and score >= 0.5:
+                best_score = score
+                best_url = link_url
+        if best_url:
+            p["apply_url"] = best_url
+
 def _safe_category(fields: any) -> str:
     """Extract a non-null category slug from field_of_study (array or string)."""
     if isinstance(fields, list) and fields:
@@ -493,6 +533,13 @@ def process_page(url: str, country_hint: Optional[str],
 
     opps = data.get("opportunities") or []
     progs = data.get("programs") or []
+
+    # Post-LLM URL matching: Haiku often returns the listing URL instead of
+    # specific program links. We match each program name to the best link
+    # from the page ourselves — more reliable than asking the LLM.
+    if progs and links_section:
+        _match_program_urls(progs, links_section, url)
+
     print(f"    extracted {len(opps)} opportunities + {len(progs)} programs")
     written = upsert_opportunities(opps, source_id, url, run.run_id, h,
                                    args.dry_run, run)
