@@ -34,7 +34,7 @@ export async function getActiveMastersPrograms(
 
 export async function getActivePrograms(filters: ProgramFilters = {}): Promise<{ programs: MastersProgram[]; total: number }> {
   const {
-    level, category, country, free_only, scholarship_only, emjm_only,
+    level, category, country, city, free_only, scholarship_only, emjm_only,
     query, page = 1, limit = 24,
   } = filters
 
@@ -56,6 +56,7 @@ export async function getActivePrograms(filters: ProgramFilters = {}): Promise<{
   if (free_only) q = q.or("tuition_usd_year.is.null,tuition_usd_year.eq.0")
   if (scholarship_only) q = q.eq("scholarship_available", true)
   if (emjm_only) q = q.eq("program_type", "erasmus_mundus_joint")
+  if (city) q = q.ilike("city", `%${city}%`)
   if (query) q = q.ilike("program_name", `%${query}%`)
 
   const from = (page - 1) * limit

@@ -131,6 +131,7 @@ export interface ProgramFilters {
   level?: 'bachelor' | 'master' | 'language' | 'all'
   category?: string
   country?: string[]
+  city?: string
   free_only?: boolean
   scholarship_only?: boolean
   emjm_only?: boolean

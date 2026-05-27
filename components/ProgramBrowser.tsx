@@ -46,6 +46,7 @@ export default function ProgramBrowser() {
   const freeOnly     = searchParams.get("free_only") === "true"
   const scholarOnly  = searchParams.get("scholarship_only") === "true"
   const emjmOnly     = searchParams.get("emjm_only") === "true"
+  const cityParam    = searchParams.get("city") ?? ""
   const query        = searchParams.get("q") ?? ""
   const page         = parseInt(searchParams.get("page") ?? "1", 10)
 
@@ -76,11 +77,12 @@ export default function ProgramBrowser() {
     if (freeOnly)        p.set("free_only", "true")
     if (scholarOnly)     p.set("scholarship_only", "true")
     if (emjmOnly)        p.set("emjm_only", "true")
+    if (cityParam)       p.set("city", cityParam)
     if (query)           p.set("q", query)
     p.set("page",  String(page))
     p.set("limit", "24")
     return `/api/programs?${p}`
-  }, [level, category, countryParam, freeOnly, scholarOnly, emjmOnly, query, page])
+  }, [level, category, countryParam, freeOnly, scholarOnly, emjmOnly, cityParam, query, page])
 
   useEffect(() => {
     setLoading(true)
@@ -99,6 +101,7 @@ export default function ProgramBrowser() {
     if (freeOnly)        merged.free_only = "true"
     if (scholarOnly)     merged.scholarship_only = "true"
     if (emjmOnly)        merged.emjm_only = "true"
+    if (cityParam)       merged.city = cityParam
     if (query)           merged.q = query
     Object.assign(merged, overrides)
     const p = new URLSearchParams(
@@ -174,6 +177,24 @@ export default function ProgramBrowser() {
             )
           })}
         </div>
+      </div>
+
+      {/* City */}
+      <div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">City</p>
+        <input
+          type="text"
+          value={cityParam}
+          onChange={(e) => {
+            const val = e.target.value
+            const p = new URLSearchParams(window.location.search)
+            if (val) p.set("city", val); else p.delete("city")
+            p.delete("page")
+            router.push(`/programs?${p}`)
+          }}
+          placeholder="Type a city (e.g. Berlin, Paris)"
+          className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+        />
       </div>
 
       {/* Toggles */}
