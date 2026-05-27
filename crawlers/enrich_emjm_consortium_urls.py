@@ -53,6 +53,14 @@ EXCLUDE_DOMAINS = {
     "shiksha.com", "study.eu", "studyabroad.com", "hotcourses.com",
     "facebook.com", "linkedin.com", "twitter.com", "wikipedia.org",
     "youtube.com", "instagram.com", "reddit.com",
+    # SEO aggregators that impersonate Erasmus Mundus consortium pages
+    "erasmuscatalogue.com", "erasmusscholarships.com", "scholarshipsgpt.com",
+    "scholarshipsads.com", "afterschoolafrica.com", "opportunitydesk.org",
+    "scholars4dev.com", "scholarshipdb.net", "scholarshipportal.com",
+    "scholarship-positions.com", "findaphd.com", "phdstudies.com",
+    "masterstudies.com", "academiccourses.com", "studyqa.com",
+    "erudera.com", "ambitio.club", "weuni.com", "idp.com",
+    "applyboard.com", "unischolars.com", "stuudy.com",
 }
 
 # Hints that a result IS the consortium homepage (good signal)
