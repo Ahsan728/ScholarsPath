@@ -161,15 +161,61 @@ export async function getFeaturedOpportunities(limit = 6): Promise<Opportunity[]
 
 export async function getRecentOpportunities(limit = 12): Promise<Opportunity[]> {
   const today = new Date().toISOString().split("T")[0]
-  const { data } = await adminSupabase
-    .from("opportunities")
-    .select("*")
-    .eq("status", "open")
-    .or(`deadline.gte.${today},deadline.is.null`)
-    .order("created_at", { ascending: false })
-    .limit(limit)
 
-  return (data ?? []) as Opportunity[]
+  // Pull from BOTH legacy opportunities AND discovered_opportunities,
+  // merge, and return the most recent across both tables.
+  const [{ data: legacy }, { data: discovered }] = await Promise.all([
+    adminSupabase
+      .from("opportunities")
+      .select("*")
+      .eq("status", "open")
+      .or(`deadline.gte.${today},deadline.is.null`)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    adminSupabase
+      .from("discovered_opportunities")
+      .select("*")
+      .eq("is_active", true)
+      .order("discovered_at", { ascending: false })
+      .limit(limit),
+  ])
+
+  // Map discovered_opportunities to the Opportunity display shape
+  const mappedDiscovered = (discovered ?? []).map((d: any): Opportunity => ({
+    id: d.id,
+    title: d.title,
+    type: d.type ?? "scholarship",
+    host_country: [d.country],
+    eligible_nations: d.eligible_nations ?? ["ALL"],
+    ineligible_nations: d.ineligible_nations ?? [],
+    field_of_study: d.field_of_study ?? [],
+    degree_level: d.degree_level ?? "any",
+    funding_type: d.funding_type ?? null,
+    amount_usd: d.amount_usd ?? null,
+    currency: null,
+    deadline: d.deadline ?? null,
+    open_date: null,
+    status: "open",
+    description: d.description ?? "",
+    eligibility_text: d.eligibility_text ?? null,
+    requirements: [],
+    apply_url: d.apply_url ?? d.source_url ?? "",
+    source_url: d.source_url,
+    source_name: "discovered",
+    is_verified: false,
+    is_featured: false,
+    scam_score: 0,
+    embedding_id: null,
+    created_at: d.discovered_at,
+    updated_at: d.last_seen_at,
+  }))
+
+  // Merge + sort by date, return top N
+  const merged = [...(legacy ?? []) as Opportunity[], ...mappedDiscovered]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit)
+
+  return merged
 }
 
 // Personalised feed for a logged-in user
