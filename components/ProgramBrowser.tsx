@@ -56,9 +56,17 @@ export default function ProgramBrowser() {
   const [loading, setLoading]           = useState(true)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [searchInput, setSearchInput]   = useState(query)
+  const [savedIds, setSavedIds]         = useState<Set<string>>(new Set())
 
   // Sync search input when URL query changes (e.g. browser back/forward)
   useEffect(() => { setSearchInput(query) }, [query])
+
+  // Load saved program IDs (for heart icons)
+  useEffect(() => {
+    fetch("/api/programs/save").then(r => r.json()).then(j => {
+      if (Array.isArray(j.ids)) setSavedIds(new Set(j.ids))
+    }).catch(() => {})
+  }, [])
 
   const apiUrl = useCallback(() => {
     const p = new URLSearchParams()
@@ -297,7 +305,7 @@ export default function ProgramBrowser() {
             <div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {programs.map((p) => (
-                  <ProgramCard key={p.id} program={p} />
+                  <ProgramCard key={p.id} program={p} savedIds={savedIds} />
                 ))}
               </div>
 

@@ -33,24 +33,24 @@ const QUICK_FILTERS = [
 
 const FEATURE_HIGHLIGHTS = [
   {
-    icon: "🌍",
-    title: "1,000+ Opportunities",
-    desc: "Scholarships, PhDs, fellowships & internships from 50+ countries, updated daily.",
+    icon: "🎓",
+    title: "9,200+ Programs",
+    desc: "Masters & bachelors from 800+ European universities. English-taught, validated, updated weekly.",
   },
   {
-    icon: "🤖",
-    title: "AI-Powered Search",
-    desc: "Ask in plain English — our AI finds the most relevant matches for your profile.",
+    icon: "✨",
+    title: "Erasmus Mundus",
+    desc: "Fully funded joint masters across 2-4 European countries. Filter with one click.",
   },
   {
     icon: "🎯",
     title: "Smart Match",
-    desc: "Upload your CV and get a personalised ranked list of programs that fit you.",
+    desc: "Enter your GPA + IELTS + field — get a ranked list of programs that fit your profile.",
   },
   {
     icon: "🇧🇩",
-    title: "BD-Focused",
-    desc: "Curated for Bangladeshi students with eligibility filtering built in.",
+    title: "Built for You",
+    desc: "Curated for Bangladeshi & South Asian students. Scholarship eligibility built in.",
   },
 ]
 
@@ -95,17 +95,17 @@ export default async function HomePage({ searchParams }: HomeProps) {
             </div>
 
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-              Find Your{" "}
+              Study in{" "}
               <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
-                Scholarship
+                Europe
               </span>
-              ,<br className="hidden sm:block" /> PhD or Fellowship
+              <br className="hidden sm:block" /> — Find Your Perfect Program
             </h1>
 
             <p className="mt-5 text-lg leading-relaxed text-blue-100 sm:text-xl">
-              1,000+ fully funded opportunities worldwide — filtered for{" "}
-              <span className="font-semibold text-white">Bangladeshi &amp; global students</span>.
-              Powered by AI.
+              9,200+ English-taught masters & bachelors from 800+ universities — plus{" "}
+              <span className="font-semibold text-white">Erasmus Mundus fully funded programs</span>.
+              Matched to your profile.
             </p>
 
             {/* Search bar */}
