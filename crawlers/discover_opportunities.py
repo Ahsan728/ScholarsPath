@@ -68,11 +68,16 @@ TARGET_COUNTRIES = {
     "Norway", "Portugal", "Ireland", "Czech Republic", "Poland",
 }
 
-# Cheap pre-filter — if NONE of these appear in the page text, skip the LLM
+# Cheap pre-filter — if NONE of these appear in the page text, skip the LLM.
+# Matches BOTH opportunity keywords AND program keywords (since we now
+# extract both in one call).
 KEYWORDS_RX = re.compile(
     r"scholarship|funding|fellowship|grant|phd|doctorate|bursar(y|ies)|"
     r"borse di studio|bourse|stipendium|beurs|stipendia|"
-    r"financ(ial|ement) (aid|support)",
+    r"financ(ial|ement) (aid|support)|"
+    r"master|bachelor|programme|program|degree|msc|bsc|"
+    r"admission|apply|application|intake|semester|"
+    r"taught in english|english.taught|language of instruction",
     re.IGNORECASE,
 )
 
@@ -189,9 +194,14 @@ def queue_2_candidate_urls(base_url: str) -> list[str]:
     return [base_url.rstrip("/") + p for p in CANDIDATE_PATHS]
 
 
-# ── LLM extraction prompt ─────────────────────────────────────
+# ── LLM extraction prompt (unified: opportunities + programs) ──
 def build_prompt(page_text: str, source_url: str, country_hint: Optional[str]) -> str:
-    return f"""Extract every distinct scholarship, fellowship, grant, PhD, or funding opportunity mentioned in the page text. Reply with ONLY valid JSON:
+    return f"""Analyse this page and extract TWO things:
+
+1. **Opportunities**: scholarships, fellowships, grants, PhD positions, funding
+2. **Programs**: English-taught bachelor's or master's degree programs
+
+Reply with ONLY valid JSON:
 
 {{
   "opportunities": [
@@ -213,6 +223,24 @@ def build_prompt(page_text: str, source_url: str, country_hint: Optional[str]) -
       "intake":           "<e.g. 'Fall 2026' or null>",
       "apply_url":        "<direct apply link if present or null>"
     }}
+  ],
+  "programs": [
+    {{
+      "program_name":    "<official name, e.g. 'MSc Computer Science'>",
+      "university":      "<university name>",
+      "country":         "<full English country name>",
+      "city":            "<city or null>",
+      "level":           "<bachelor | master>",
+      "duration_years":  <number like 1, 1.5, 2 or null>,
+      "language":        "<'English' or 'English, German' etc.>",
+      "field_of_study":  ["<broad field>"],
+      "tuition_text":    "<verbatim tuition string or 'Free' or null>",
+      "ielts_min":       <number or null>,
+      "deadline":        "<YYYY-MM-DD or null>",
+      "intake":          "<e.g. 'Fall 2026' or null>",
+      "apply_url":       "<direct program/apply link or null>",
+      "description":     "<1-2 sentences or null>"
+    }}
   ]
 }}
 
@@ -220,11 +248,13 @@ Source URL: {source_url}
 Country hint (if obvious): {country_hint or 'unknown'}
 
 Rules:
-- Skip the page if it is clearly a homepage / navigation index with no actual opportunities.
-- Skip rows you can't confidently identify as a real opportunity (don't invent).
-- amount_usd: convert from EUR / GBP / SEK / etc. using approximate rates if the page only gives non-USD.
-- deadline: parse explicit dates only. If only a season is given, use deadline_text.
-- Return {{"opportunities": []}} if nothing usable.
+- Extract opportunities AND programs — a page can have both, one, or neither.
+- For programs: ONLY include English-taught (or mixed with English). Skip purely non-English programs.
+- For programs: each row = one distinct degree program, not a department or faculty overview.
+- For opportunities: skip rows you can't confidently identify (don't invent).
+- Return {{"opportunities": [], "programs": []}} if nothing usable.
+- amount_usd: convert from EUR / GBP / SEK using approximate rates.
+- deadline: explicit dates only; use deadline_text for vague timing.
 
 Page text (truncated):
 {page_text[:14000]}"""
@@ -284,6 +314,81 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
     return written
 
 
+# ── Upsert programs ───────────────────────────────────────────
+def upsert_programs(rows: list[dict], source_url: str,
+                    dry_run: bool, run: CrawlerRun) -> int:
+    """Insert extracted programs into masters_programs, dedup by fingerprint."""
+    import hashlib
+    written = 0
+    for p in rows:
+        name = (p.get("program_name") or "").strip()
+        uni  = (p.get("university") or "").strip()
+        country = (p.get("country") or "").strip()
+        lang = (p.get("language") or "").strip()
+        if not name or not country:
+            continue
+        # Only English-taught or mixed-with-English
+        if lang and "english" not in lang.lower():
+            continue
+
+        fp_raw = f"{name.lower()}|{country.lower()}|{(p.get('level') or 'master').lower()}"
+        fingerprint = hashlib.sha256(fp_raw.encode()).hexdigest()
+
+        record = {
+            "program_name":    name[:300],
+            "university":      uni[:300] or "Unknown University",
+            "country":         country,
+            "city":            (p.get("city") or "")[:100] or None,
+            "level":           p.get("level") or "master",
+            "duration_years":  p.get("duration_years") or 2,
+            "language":        lang or "English",
+            "field_of_study":  p.get("field_of_study") or [],
+            "category":        (p.get("field_of_study") or [""])[0][:50].lower().replace(" ", "_") or "general",
+            "tuition_usd_year": None,
+            "ielts_min":       p.get("ielts_min"),
+            "gre_required":    False,
+            "gpa_min":         None,
+            "gpa_scale":       4.0,
+            "intake":          p.get("intake") or None,
+            "deadline":        p.get("deadline") or None,
+            "scholarship_available": False,
+            "description":     (p.get("description") or f"{name} at {uni}")[:1000],
+            "requirements":    [],
+            "apply_url":       p.get("apply_url") or source_url,
+            "source_url":      source_url,
+            "source_name":     "discoverer",
+            "is_active":       True,
+            "fingerprint":     fingerprint,
+        }
+
+        if dry_run:
+            print(f"    WOULD INSERT PROGRAM: [{record['level']:7s}] {record['country'][:12]:12s} {record['program_name'][:60]}")
+            run.skipped()
+            continue
+
+        # Check existing by fingerprint
+        existing = httpx.get(
+            f"{SB_URL}/rest/v1/masters_programs",
+            headers={"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"},
+            params={"select": "id", "fingerprint": f"eq.{fingerprint}", "limit": "1"},
+            timeout=10,
+        )
+        if existing.status_code == 200 and existing.json():
+            continue  # already exists
+
+        r = httpx.post(
+            f"{SB_URL}/rest/v1/masters_programs",
+            headers=SB_H, json=record, timeout=30,
+        )
+        if r.status_code in (200, 201, 204):
+            written += 1
+            run.ok()
+        else:
+            run.failed(target_url=source_url,
+                       message=f"program insert failed: {r.status_code} {r.text[:200]}")
+    return written
+
+
 # ── Per-page worker ───────────────────────────────────────────
 def process_page(url: str, country_hint: Optional[str],
                  source_id: Optional[str], run: CrawlerRun,
@@ -324,7 +429,7 @@ def process_page(url: str, country_hint: Optional[str],
             run_id=run.run_id,
             max_usd_per_run=args.max_usd,
             provider=args.provider,
-            expected_keys=("opportunities",),
+            expected_keys=("opportunities", "programs"),
             estimated_cost=0.015,
         )
     except BudgetExceeded as e:
@@ -336,9 +441,12 @@ def process_page(url: str, country_hint: Optional[str],
         return 0
 
     opps = data.get("opportunities") or []
-    print(f"    extracted {len(opps)} opportunities")
-    return upsert_opportunities(opps, source_id, url, run.run_id, h,
-                                args.dry_run, run)
+    progs = data.get("programs") or []
+    print(f"    extracted {len(opps)} opportunities + {len(progs)} programs")
+    written = upsert_opportunities(opps, source_id, url, run.run_id, h,
+                                   args.dry_run, run)
+    written += upsert_programs(progs, url, args.dry_run, run)
+    return written
 
 
 # ── Existing hashes ───────────────────────────────────────────
