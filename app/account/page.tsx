@@ -2,8 +2,8 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { adminSupabase } from "@/lib/supabase"
 import Link from "next/link"
-import { GraduationCap, Sparkles, FileText, Crown, LogOut, Clock, AlertCircle } from "lucide-react"
-import type { UserTier } from "@/types"
+import { GraduationCap, Sparkles, FileText, Crown, LogOut, Clock, AlertCircle, Heart, ExternalLink } from "lucide-react"
+import type { UserTier, MastersProgram } from "@/types"
 
 interface AccountData {
   name: string
@@ -15,6 +15,7 @@ interface AccountData {
   cvLimit: number
   periodEnd: string | null
   hasPendingPayment: boolean
+  savedPrograms: MastersProgram[]
 }
 
 async function getUser(): Promise<AccountData | null> {
@@ -27,7 +28,7 @@ async function getUser(): Promise<AccountData | null> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
 
-  const [{ data: user }, { data: sub }, { count: pendingCount }] = await Promise.all([
+  const [{ data: user }, { data: sub }, { count: pendingCount }, { data: savedRows }] = await Promise.all([
     adminSupabase.from("users").select("*").eq("id", session.user.id).single(),
     adminSupabase.from("subscriptions").select("tier,current_period_end").eq("user_id", session.user.id).single(),
     adminSupabase
@@ -35,6 +36,12 @@ async function getUser(): Promise<AccountData | null> {
       .select("*", { count: "exact", head: true })
       .eq("user_id", session.user.id)
       .eq("status", "pending"),
+    adminSupabase
+      .from("saved_programs")
+      .select("program_id")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ])
 
   const tier = (sub?.tier as UserTier) ?? "free"
@@ -44,6 +51,18 @@ async function getUser(): Promise<AccountData | null> {
 
   const ragUsed = user?.rag_reset_month === currentMonth ? (user?.rag_queries_month ?? 0) : 0
   const cvUsed  = user?.cv_eval_reset_month === currentMonth ? (user?.cv_eval_month ?? 0) : 0
+
+  // Fetch saved program details
+  const savedProgramIds = (savedRows ?? []).map((r: any) => r.program_id)
+  let savedPrograms: MastersProgram[] = []
+  if (savedProgramIds.length > 0) {
+    const { data: progs } = await adminSupabase
+      .from("masters_programs")
+      .select("id, program_name, university, country, city, apply_url, level, program_type")
+      .in("id", savedProgramIds)
+      .eq("is_active", true)
+    savedPrograms = (progs ?? []) as MastersProgram[]
+  }
 
   return {
     name: user?.full_name ?? session.user.email ?? "",
@@ -55,6 +74,7 @@ async function getUser(): Promise<AccountData | null> {
     cvLimit: 3, // only shown to students; 3/month
     periodEnd: sub?.current_period_end ?? null,
     hasPendingPayment: (pendingCount ?? 0) > 0,
+    savedPrograms,
   }
 }
 
@@ -155,6 +175,48 @@ export default async function AccountPage({ searchParams }: { searchParams: { pa
               </div>
             )}
           </div>
+        </div>
+
+        {/* Saved Programs */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+              <Heart className="h-4 w-4 text-red-500" /> Saved Programs
+            </h2>
+            <Link href="/programs" className="text-xs text-blue-600 hover:underline">Browse programs →</Link>
+          </div>
+          {user.savedPrograms.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No saved programs yet. Click the ❤️ icon on any program card to save it here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {user.savedPrograms.map((p) => (
+                <div key={p.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/programs/${p.id}`} className="text-sm font-medium text-blue-700 hover:text-blue-900">
+                      {p.program_name}
+                    </Link>
+                    <p className="text-xs text-gray-500">{p.university} · {p.city}, {p.country}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {p.program_type === "erasmus_mundus_joint" && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">EMJM</span>
+                    )}
+                    {p.apply_url && (
+                      <a href={p.apply_url} target="_blank" rel="noopener noreferrer"
+                         className="text-xs text-blue-500 hover:text-blue-700 inline-flex items-center gap-0.5">
+                        Apply <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {user.savedPrograms.length >= 20 && (
+                <p className="text-xs text-gray-400 text-center pt-2">Showing latest 20 saved programs</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Upgrade CTA (free users only — not for Pro or Student) */}
