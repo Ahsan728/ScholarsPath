@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2, Trash2, ExternalLink, Search, Clock } from "lucide-react"
+import { Plus, Loader2, Trash2, ExternalLink, Search, Clock, Play } from "lucide-react"
 import type { SourceRow } from "./page"
 
 interface Props {
@@ -79,11 +79,52 @@ export function SourcesClient({ initialSources }: Props) {
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`)
-      setMsg(j.duplicate ? "Already in registry — nothing changed." : "✓ Added")
+      if (j.duplicate) {
+        setMsg("Already in registry — nothing changed.")
+      } else {
+        setMsg("✓ Added — processing...")
+        // Auto-process: extract programs + opportunities from the new source
+        if (j.id) {
+          try {
+            const pr = await fetch("/api/admin/sources/process", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ source_id: j.id }),
+            })
+            const pj = await pr.json()
+            if (pr.ok) {
+              setMsg(`✓ Done — ${pj.programs || 0} programs + ${pj.opportunities || 0} opportunities extracted`)
+            } else {
+              setMsg(`✓ Added but processing failed: ${pj.error || "unknown error"}`)
+            }
+          } catch (pe: any) {
+            setMsg(`✓ Added but processing error: ${pe.message}`)
+          }
+        }
+      }
       setNewUrl(""); setNewCountry(""); setNewTitle(""); setNewNotes("")
       router.refresh()
     } catch (e: any) {
       setMsg(`Error: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function processSource(id: string) {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await fetch("/api/admin/sources/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_id: id }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || "Failed")
+      setMsg(`✓ ${j.programs || 0} programs + ${j.opportunities || 0} opportunities extracted`)
+      router.refresh()
+    } catch (e: any) {
+      setMsg(`Processing failed: ${e.message}`)
     } finally {
       setBusy(false)
     }
@@ -266,13 +307,23 @@ export function SourcesClient({ initialSources }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => removeSource(s.id, s.url)}
-                      disabled={busy}
-                      className="text-red-400 hover:text-red-300 disabled:opacity-50 inline-flex items-center gap-1 text-xs"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove
-                    </button>
+                    <div className="inline-flex gap-2">
+                      <button
+                        onClick={() => processSource(s.id)}
+                        disabled={busy}
+                        className="text-green-400 hover:text-green-300 disabled:opacity-50 inline-flex items-center gap-1 text-xs"
+                        title="Process: extract programs + opportunities from this URL"
+                      >
+                        <Play className="h-3.5 w-3.5" /> Process
+                      </button>
+                      <button
+                        onClick={() => removeSource(s.id, s.url)}
+                        disabled={busy}
+                        className="text-red-400 hover:text-red-300 disabled:opacity-50 inline-flex items-center gap-1 text-xs"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
