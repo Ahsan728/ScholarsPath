@@ -315,6 +315,18 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
 
 
 # ── Upsert programs ───────────────────────────────────────────
+def _safe_category(fields: any) -> str:
+    """Extract a non-null category slug from field_of_study (array or string)."""
+    if isinstance(fields, list) and fields:
+        raw = str(fields[0])[:50]
+    elif isinstance(fields, str) and fields:
+        raw = fields[:50]
+    else:
+        return "general"
+    slug = raw.lower().strip().replace(" ", "_").replace("/", "_")
+    return slug if slug else "general"
+
+
 def upsert_programs(rows: list[dict], source_url: str,
                     dry_run: bool, run: CrawlerRun) -> int:
     """Insert extracted programs into masters_programs, dedup by fingerprint."""
@@ -338,18 +350,18 @@ def upsert_programs(rows: list[dict], source_url: str,
             "program_name":    name[:300],
             "university":      uni[:300] or "Unknown University",
             "country":         country,
-            "city":            (p.get("city") or "")[:100] or None,
+            "city":            (p.get("city") or "").strip()[:100] or country,
             "level":           p.get("level") or "master",
             "duration_years":  p.get("duration_years") or 2,
             "language":        lang or "English",
             "field_of_study":  p.get("field_of_study") or [],
-            "category":        (p.get("field_of_study") or [""])[0][:50].lower().replace(" ", "_") or "general",
+            "category":        _safe_category(p.get("field_of_study")),
             "tuition_usd_year": None,
             "ielts_min":       p.get("ielts_min"),
             "gre_required":    False,
             "gpa_min":         None,
             "gpa_scale":       4.0,
-            "intake":          p.get("intake") or None,
+            "intake":          p.get("intake") or "Fall/Spring",
             "deadline":        p.get("deadline") or None,
             "scholarship_available": False,
             "description":     (p.get("description") or f"{name} at {uni}")[:1000],
@@ -383,9 +395,19 @@ def upsert_programs(rows: list[dict], source_url: str,
         if r.status_code in (200, 201, 204):
             written += 1
             run.ok()
+            print(f"    + {record['program_name'][:60]}", flush=True)
         else:
+            err_body = r.text[:800]
+            # Parse out the specific column name from the Postgres error
+            import json as _json
+            try:
+                err_obj = _json.loads(r.text)
+                col_msg = err_obj.get("message", "")
+                print(f"    FAIL {r.status_code}: {col_msg}", flush=True)
+            except Exception:
+                print(f"    FAIL {r.status_code}: {err_body}", flush=True)
             run.failed(target_url=source_url,
-                       message=f"program insert failed: {r.status_code} {r.text[:200]}")
+                       message=f"program insert failed: {r.status_code} {err_body}")
     return written
 
 
@@ -429,8 +451,9 @@ def process_page(url: str, country_hint: Optional[str],
             run_id=run.run_id,
             max_usd_per_run=args.max_usd,
             provider=args.provider,
+            max_tokens=6000,
             expected_keys=("opportunities", "programs"),
-            estimated_cost=0.015,
+            estimated_cost=0.02,
         )
     except BudgetExceeded as e:
         print(f"    BUDGET EXCEEDED — stopping run cleanly: {e}")
