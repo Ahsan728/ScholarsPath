@@ -99,12 +99,20 @@ async function callAnthropic(prompt: string, model: string, maxTokens: number): 
 }
 
 async function callOpenAI(prompt: string, model: string, maxTokens: number): Promise<{ text: string; tokIn: number; tokOut: number }> {
-  // Lazy import so the openai SDK is optional unless this branch is used.
-  // @ts-ignore — `openai` package is added to package.json by the user when
-  // they want to enable the OpenAI provider. The default provider is
-  // 'anthropic', so this branch only runs if explicitly opted into.
-  const mod = await import("openai")
-  const OpenAI = (mod as any).default || (mod as any).OpenAI
+  // OpenAI is optional — only used if explicitly opted into via provider: "openai".
+  // We use a dynamic require() wrapped in try/catch so the build doesn't fail
+  // when the openai package isn't installed.
+  let OpenAI: any
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require("openai")
+    OpenAI = mod.default || mod.OpenAI || mod
+  } catch {
+    throw new Error(
+      "OpenAI provider requested but 'openai' package is not installed. " +
+      "Run 'npm install openai' or switch to provider: 'anthropic'."
+    )
+  }
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
   const r = await client.chat.completions.create({
     model,
