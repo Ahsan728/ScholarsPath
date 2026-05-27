@@ -101,6 +101,25 @@ def fetch_page(url: str) -> Optional[str]:
         return None
 
 
+def extract_links(html: str, base_url: str) -> str:
+    """Extract all <a href> links with their anchor text. Returns a compact
+    list that Haiku can use to match programs to their individual URLs."""
+    from urllib.parse import urljoin
+    links = re.findall(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', html or "", re.I | re.DOTALL)
+    seen = set()
+    out = []
+    for href, text in links:
+        text_clean = re.sub(r"<[^>]+>", "", text).strip()
+        if not text_clean or len(text_clean) < 3:
+            continue
+        full_url = urljoin(base_url, href)
+        if full_url in seen:
+            continue
+        seen.add(full_url)
+        out.append(f"  [{text_clean[:80]}]({full_url})")
+    return "\n".join(out[:150])
+
+
 def strip_html(html: str) -> str:
     """Lightweight Readability replacement: drop nav/script/style + tags."""
     html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
@@ -195,7 +214,8 @@ def queue_2_candidate_urls(base_url: str) -> list[str]:
 
 
 # ── LLM extraction prompt (unified: opportunities + programs) ──
-def build_prompt(page_text: str, source_url: str, country_hint: Optional[str]) -> str:
+def build_prompt(page_text: str, source_url: str, country_hint: Optional[str],
+                 links_section: str = "") -> str:
     return f"""Analyse this page and extract TWO things:
 
 1. **Opportunities**: scholarships, fellowships, grants, PhD positions, funding
@@ -255,9 +275,13 @@ Rules:
 - Return {{"opportunities": [], "programs": []}} if nothing usable.
 - amount_usd: convert from EUR / GBP / SEK using approximate rates.
 - deadline: explicit dates only; use deadline_text for vague timing.
+- apply_url for programs: use the SPECIFIC program page link from the Links section below — NOT the listing page URL. Each program should have its own distinct URL.
 
 Page text (truncated):
-{page_text[:14000]}"""
+{page_text[:12000]}
+
+Links found on this page (use these for apply_url — match each program to its specific link):
+{links_section[:3000] if links_section else "(no links extracted)"}"""
 
 
 # ── Upsert ────────────────────────────────────────────────────
@@ -439,12 +463,16 @@ def process_page(url: str, country_hint: Optional[str],
         run.skipped()
         return 0
 
-    print(f"    PROCESS: {url} ({len(text)} chars)")
+    # Extract links BEFORE stripping HTML — needed so Haiku can match
+    # each program to its specific URL instead of the listing page
+    links_section = extract_links(html, url)
+
+    print(f"    PROCESS: {url} ({len(text)} chars, {links_section.count(chr(10))+1 if links_section else 0} links)")
     if args.dry_run:
         run.skipped()
         return 0
 
-    prompt = build_prompt(text, url, country_hint)
+    prompt = build_prompt(text, url, country_hint, links_section)
     try:
         data = extract_json(
             prompt=prompt,
