@@ -161,6 +161,56 @@ export default async function HomePage({ searchParams }: HomeProps) {
           </div>
         )}
 
+        {/* ── Erasmus Mundus Hero (homepage only) ───────────────── */}
+        {!hasFilters && (
+          <div className="mb-10 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-6 sm:p-8 text-white relative overflow-hidden">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative flex flex-col sm:flex-row items-start gap-6">
+              <div className="flex-1 min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold mb-3 backdrop-blur-sm">
+                  <span className="text-yellow-300">✨</span> Erasmus Mundus Joint Masters
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
+                  Fully Funded Masters in Europe
+                </h2>
+                <p className="text-blue-100 text-sm sm:text-base leading-relaxed mb-4 max-w-xl">
+                  Study at 2-4 top European universities under one scholarship.
+                  €1,400/month stipend + tuition + travel covered. 36 programs across
+                  Engineering, Science, Law, Health, Business &amp; more.
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                  <Link
+                    href="/programs?emjm_only=true"
+                    className="inline-block rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    Browse Erasmus Mundus →
+                  </Link>
+                  <Link
+                    href="/match"
+                    className="inline-block rounded-xl border border-white/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  >
+                    Smart Match My Profile
+                  </Link>
+                </div>
+              </div>
+              <div className="hidden sm:flex flex-col gap-2 text-right shrink-0">
+                <div className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-3">
+                  <p className="text-2xl font-extrabold">36</p>
+                  <p className="text-[10px] uppercase tracking-wide text-blue-200">Programs</p>
+                </div>
+                <div className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-3">
+                  <p className="text-2xl font-extrabold">16+</p>
+                  <p className="text-[10px] uppercase tracking-wide text-blue-200">Countries</p>
+                </div>
+                <div className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-3">
+                  <p className="text-2xl font-extrabold">€33k</p>
+                  <p className="text-[10px] uppercase tracking-wide text-blue-200">Stipend</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── AI Chat (homepage only) ────────────────────────────── */}
         {!hasFilters && (
           <div className="mb-10">
