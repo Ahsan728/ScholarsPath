@@ -66,73 +66,86 @@ export const adminSupabase = createLazySupabaseClient(() => {
 
 export async function getOpportunities(filters: SearchFilters): Promise<SearchResult> {
   const {
-    query,
-    type,
-    host_country,
-    eligible_for,
-    field,
-    degree_level,
-    funding_type,
-    status = "open",
-    deadline_after,
-    page = 1,
-    limit = 20,
+    query, type, host_country, eligible_for, field, degree_level,
+    funding_type, status = "open", deadline_after,
+    page = 1, limit = 20,
   } = filters
 
-  let q = adminSupabase
-    .from("opportunities")
-    .select("*", { count: "exact" })
-    .order("deadline", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false })
+  // Query BOTH tables in parallel
+  let qLegacy = adminSupabase.from("opportunities").select("*", { count: "exact" })
+  let qDisc   = adminSupabase.from("discovered_opportunities").select("*", { count: "exact" }).eq("is_active", true)
 
-  // Status filter
-  if (status) q = q.eq("status", status)
-
-  // Opportunity type
-  if (type?.length) q = q.in("type", type)
-
-  // Host country
-  if (host_country?.length) q = q.overlaps("host_country", host_country)
-
-  // Nationality eligibility: ALL or contains the nationality code
+  if (status) qLegacy = qLegacy.eq("status", status)
+  if (type?.length) {
+    qLegacy = qLegacy.in("type", type)
+    qDisc   = qDisc.in("type", type)
+  }
+  if (host_country?.length) {
+    qLegacy = qLegacy.overlaps("host_country", host_country)
+    qDisc   = qDisc.in("country", host_country)
+  }
   if (eligible_for) {
-    q = q.or(`eligible_nations.cs.{"ALL"},eligible_nations.cs.{"${eligible_for}"}`)
+    qLegacy = qLegacy.or(`eligible_nations.cs.{"ALL"},eligible_nations.cs.{"${eligible_for}"}`)
   }
-
-  // Field of study
-  if (field?.length) q = q.overlaps("field_of_study", field)
-
-  // Degree level
-  if (degree_level?.length) q = q.in("degree_level", degree_level)
-
-  // Funding type
-  if (funding_type?.length) q = q.in("funding_type", funding_type)
-
-  // Deadline filter — only show not-yet-expired
+  if (field?.length) {
+    qLegacy = qLegacy.overlaps("field_of_study", field)
+    qDisc   = qDisc.overlaps("field_of_study", field)
+  }
+  if (degree_level?.length) {
+    qLegacy = qLegacy.in("degree_level", degree_level)
+    qDisc   = qDisc.in("degree_level", degree_level)
+  }
+  if (funding_type?.length) qLegacy = qLegacy.in("funding_type", funding_type)
   if (deadline_after) {
-    q = q.gte("deadline", deadline_after)
-  } else {
-    q = q.or(`deadline.gte.${new Date().toISOString().split("T")[0]},deadline.is.null`)
+    qLegacy = qLegacy.gte("deadline", deadline_after)
   }
-
-  // Full-text keyword search
   if (query) {
-    q = q.textSearch("title", query, { type: "websearch", config: "english" })
+    qLegacy = qLegacy.ilike("title", `%${query}%`)
+    qDisc   = qDisc.ilike("title", `%${query}%`)
   }
 
-  // Pagination
+  // Fetch both — broader limit since we'll merge + slice
+  qLegacy = qLegacy.order("deadline", { ascending: true, nullsFirst: false })
+                   .order("created_at", { ascending: false })
+                   .range(0, page * limit + 50)
+  qDisc   = qDisc.order("created_at", { ascending: false })
+                 .range(0, page * limit + 50)
+
+  const [legacyResp, discResp] = await Promise.all([qLegacy, qDisc])
+
+  if (legacyResp.error) throw new Error(`Legacy query: ${legacyResp.error.message}`)
+
+  // Map discovered_opportunities rows to Opportunity shape
+  const discMapped = (discResp.data ?? []).map((d: any) => ({
+    id: d.id, title: d.title || "", type: d.type || "scholarship",
+    host_country: d.country ? [d.country] : [],
+    eligible_nations: ["ALL"], ineligible_nations: [],
+    field_of_study: d.field_of_study || [],
+    degree_level: d.degree_level || "any",
+    funding_type: d.funding_type, amount_usd: null, currency: null,
+    deadline: null, open_date: null, status: "open",
+    description: d.description || "", eligibility_text: d.eligibility_text,
+    requirements: [], apply_url: d.apply_url || "",
+    source_url: d.source_url || "", source_name: "discoverer",
+    is_verified: false, is_featured: false, scam_score: 0,
+    embedding_id: null,
+    created_at: d.created_at || new Date().toISOString(),
+    updated_at: d.last_seen_at || d.created_at || new Date().toISOString(),
+  } as Opportunity))
+
+  // Merge + sort by recency, then paginate
+  const merged = [...(legacyResp.data ?? []) as Opportunity[], ...discMapped]
+  merged.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+
+  const totalCount = (legacyResp.count ?? 0) + (discResp.count ?? 0)
   const from = (page - 1) * limit
-  q = q.range(from, from + limit - 1)
-
-  const { data, error, count } = await q
-
-  if (error) throw new Error(`Supabase query error: ${error.message}`)
+  const paged = merged.slice(from, from + limit)
 
   return {
-    opportunities: (data ?? []) as Opportunity[],
-    total: count ?? 0,
+    opportunities: paged,
+    total: totalCount,
     page,
-    has_more: (count ?? 0) > page * limit,
+    has_more: totalCount > page * limit,
   }
 }
 
