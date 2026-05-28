@@ -108,7 +108,7 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   qLegacy = qLegacy.order("deadline", { ascending: true, nullsFirst: false })
                    .order("created_at", { ascending: false })
                    .range(0, page * limit + 50)
-  qDisc   = qDisc.order("created_at", { ascending: false })
+  qDisc   = qDisc.order("discovered_at", { ascending: false })
                  .range(0, page * limit + 50)
 
   const [legacyResp, discResp] = await Promise.all([qLegacy, qDisc])
@@ -129,8 +129,8 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
     source_url: d.source_url || "", source_name: "discoverer",
     is_verified: false, is_featured: false, scam_score: 0,
     embedding_id: null,
-    created_at: d.created_at || new Date().toISOString(),
-    updated_at: d.last_seen_at || d.created_at || new Date().toISOString(),
+    created_at: d.discovered_at || new Date().toISOString(),
+    updated_at: d.last_seen_at || d.discovered_at || new Date().toISOString(),
   } as Opportunity))
 
   // Merge + sort by recency, then paginate
