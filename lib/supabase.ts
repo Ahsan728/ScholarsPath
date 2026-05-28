@@ -150,14 +150,34 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
 }
 
 export async function getOpportunityById(id: string): Promise<Opportunity | null> {
-  const { data, error } = await adminSupabase
-    .from("opportunities")
-    .select("*")
-    .eq("id", id)
-    .single()
+  // Try legacy table first
+  const legacy = await adminSupabase
+    .from("opportunities").select("*").eq("id", id).maybeSingle()
+  if (legacy.data) return legacy.data as Opportunity
 
-  if (error) return null
-  return data as Opportunity
+  // Fall back to discovered_opportunities
+  const disc = await adminSupabase
+    .from("discovered_opportunities").select("*").eq("id", id).maybeSingle()
+  if (!disc.data) return null
+
+  // Map discovered_opportunities row to Opportunity shape
+  const d: any = disc.data
+  return {
+    id: d.id, title: d.title || "", type: d.type || "scholarship",
+    host_country: d.country ? [d.country] : [],
+    eligible_nations: ["ALL"], ineligible_nations: [],
+    field_of_study: d.field_of_study || [],
+    degree_level: d.degree_level || "any",
+    funding_type: d.funding_type, amount_usd: null, currency: null,
+    deadline: null, open_date: null, status: "open",
+    description: d.description || "", eligibility_text: d.eligibility_text,
+    requirements: [], apply_url: d.apply_url || "",
+    source_url: d.source_url || "", source_name: "discoverer",
+    is_verified: false, is_featured: false, scam_score: 0,
+    embedding_id: null,
+    created_at: d.discovered_at || new Date().toISOString(),
+    updated_at: d.last_seen_at || d.discovered_at || new Date().toISOString(),
+  } as Opportunity
 }
 
 // Live counts for the homepage hero (programs + opportunities + EMJMs)
