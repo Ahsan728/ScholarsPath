@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { adminSupabase } from "@/lib/supabase"
 import { extractJson, SchemaInvalid } from "@/lib/ai/extract"
+import { isAggregatorHost } from "@/lib/aggregatorHosts"
 import type { UserTier } from "@/types"
 
 // POST: process one source URL — extract programs + opportunities via Haiku.
@@ -164,8 +165,22 @@ export async function POST(req: NextRequest) {
 
     // Insert opportunities
     let oppsWritten = 0
+    let oppsRejected = 0
     for (const opp of opps) {
-      if (!opp.title) continue
+      // Schema gate: title, country, type required
+      const title = (opp.title || "").trim()
+      const oppCountry = (opp.country || country || "").trim()
+      const oppType = (opp.type || "").trim()
+      if (!title || !oppCountry || !oppType) { oppsRejected++; continue }
+
+      // Aggregator gate: never store an opportunity whose apply URL is
+      // on the scam/aggregator blocklist
+      const candidateUrl = (opp.apply_url || url || "").trim()
+      if (candidateUrl && isAggregatorHost(candidateUrl)) {
+        oppsRejected++
+        continue
+      }
+
       const { error } = await adminSupabase.from("discovered_opportunities").insert({
         source_id: sourceId, source_url: url, run_id: runId,
         prompt_version: "v1", type: opp.type || "scholarship",

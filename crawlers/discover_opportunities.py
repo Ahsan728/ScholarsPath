@@ -50,6 +50,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.loca
 
 from crawler_logger import CrawlerRun
 from ai.extract import extract_json, BudgetExceeded, SchemaInvalid
+from aggregator_hosts import is_aggregator_host
 
 SB_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -289,10 +290,29 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
                          source_url: str, run_id: str, content_hash_str: str,
                          dry_run: bool, run: CrawlerRun) -> int:
     written = 0
+    rejected_schema = 0
+    rejected_aggregator = 0
     now = datetime.now(timezone.utc).isoformat()
     for opp in rows:
-        if not opp.get("title") or not opp.get("country"):
+        # Schema gate: title, country, type are required. apply_url OR
+        # source_url must be set (we fall back to the page URL below).
+        title   = (opp.get("title") or "").strip()
+        country = (opp.get("country") or "").strip()
+        opp_type = (opp.get("type") or "").strip()
+        if not title or not country or not opp_type:
+            rejected_schema += 1
             continue
+
+        # Aggregator gate: never insert an opportunity whose apply_url
+        # is on the scam/aggregator blocklist. We fall back to the page
+        # URL if no apply_url given — must check that too.
+        candidate_url = (opp.get("apply_url") or source_url or "").strip()
+        if candidate_url and is_aggregator_host(candidate_url):
+            rejected_aggregator += 1
+            run.event("warn", target_url=candidate_url,
+                      message=f"opportunity rejected: aggregator host (title='{title[:50]}')")
+            continue
+
         record = {
             "source_id":      source_id,
             "source_url":     source_url,
@@ -335,6 +355,8 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
         else:
             run.failed(target_url=source_url,
                        message=f"insert failed: {r.status_code} {r.text[:200]}")
+    if rejected_schema or rejected_aggregator:
+        print(f"    rejected at gates: schema={rejected_schema}, aggregator={rejected_aggregator}", flush=True)
     return written
 
 

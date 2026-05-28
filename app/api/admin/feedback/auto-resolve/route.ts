@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { adminSupabase } from "@/lib/supabase"
+import { AGGREGATOR_HOSTS } from "@/lib/aggregatorHosts"
 
 // Zero-cost batch auto-resolver.
 //
@@ -13,14 +14,8 @@ import { adminSupabase } from "@/lib/supabase"
 //
 // Anything that fails the gates is left untouched for manual / AI review.
 
-const AGGREGATOR_HOSTS = new Set([
-  "mastersportal.com", "mastersportal.eu", "bachelorsportal.eu",
-  "phdportal.com", "phdportal.eu", "studyportals.com",
-  "findamasters.com", "topuniversities.com", "study.eu",
-  "educations.com", "shiksha.com", "hotcourses.com",
-  "idp.com", "ambitio.club", "weuni.com", "unischolars.com",
-  "studyanywhere.com", "stuudy.com",
-])
+// AGGREGATOR_HOSTS now imported from lib/aggregatorHosts.ts (single source
+// of truth: data/aggregator_hosts.json). Add new domains there, not here.
 
 const STOP_WORDS = new Set([
   "the", "of", "and", "university", "universite", "universita",
