@@ -147,6 +147,30 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
   return data as Opportunity
 }
 
+// Live counts for the homepage hero (programs + opportunities + EMJMs)
+export async function getHeroCounts(): Promise<{ programs: number; opportunities: number; emjm: number }> {
+  try {
+    const [
+      { count: programs },
+      { count: legacyOpps },
+      { count: discOpps },
+      { count: emjm },
+    ] = await Promise.all([
+      adminSupabase.from("masters_programs").select("*", { count: "exact", head: true }).eq("is_active", true),
+      adminSupabase.from("opportunities").select("*", { count: "exact", head: true }),
+      adminSupabase.from("discovered_opportunities").select("*", { count: "exact", head: true }),
+      adminSupabase.from("masters_programs").select("*", { count: "exact", head: true }).eq("is_active", true).eq("program_type", "erasmus_mundus_joint"),
+    ])
+    return {
+      programs: programs ?? 0,
+      opportunities: (legacyOpps ?? 0) + (discOpps ?? 0),
+      emjm: emjm ?? 0,
+    }
+  } catch {
+    return { programs: 7000, opportunities: 140, emjm: 36 }
+  }
+}
+
 export async function getFeaturedOpportunities(limit = 6): Promise<Opportunity[]> {
   const { data } = await adminSupabase
     .from("opportunities")

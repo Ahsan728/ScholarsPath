@@ -5,7 +5,7 @@ import { OpportunityCard } from "@/components/OpportunityCard"
 import { FilterSidebar } from "@/components/FilterSidebar"
 import { ChatSearch } from "@/components/ChatSearch"
 import { StatsBar } from "@/components/StatsBar"
-import { getRecentOpportunities, getFeaturedOpportunities, getOpportunities } from "@/lib/supabase"
+import { getRecentOpportunities, getFeaturedOpportunities, getOpportunities, getHeroCounts } from "@/lib/supabase"
 import type { SearchFilters } from "@/types"
 
 interface HomeProps {
@@ -69,10 +69,11 @@ export default async function HomePage({ searchParams }: HomeProps) {
 
   const hasFilters = Object.values(searchParams).some(Boolean)
 
-  const [searchResults, featured, recent] = await Promise.all([
+  const [searchResults, featured, recent, heroCounts] = await Promise.all([
     hasFilters ? getOpportunities(filters) : null,
     !hasFilters ? getFeaturedOpportunities(6) : Promise.resolve([]),
     !hasFilters ? getRecentOpportunities(12) : Promise.resolve([]),
+    !hasFilters ? getHeroCounts() : Promise.resolve({ programs: 7000, opportunities: 140, emjm: 36 }),
   ])
 
   const displayOpps = searchResults?.opportunities ?? recent
@@ -95,16 +96,16 @@ export default async function HomePage({ searchParams }: HomeProps) {
             </div>
 
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-              Study in{" "}
+              Opportunities in{" "}
               <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
                 Europe
               </span>
-              <br className="hidden sm:block" /> — Find Your Perfect Program
+              <br className="hidden sm:block" /> — Find your Scholarship, PhD &amp; Programs
             </h1>
 
             <p className="mt-5 text-lg leading-relaxed text-blue-100 sm:text-xl">
-              9,200+ English-taught masters & bachelors from 800+ universities — plus{" "}
-              <span className="font-semibold text-white">Erasmus Mundus fully funded programs</span>.
+              {heroCounts.programs.toLocaleString()}+ English-taught masters &amp; bachelors, {heroCounts.opportunities}+ scholarships &amp; PhD positions — plus{" "}
+              <span className="font-semibold text-white">{heroCounts.emjm} Erasmus Mundus fully funded programs</span>.
               Matched to your profile.
             </p>
 
