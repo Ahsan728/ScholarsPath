@@ -100,7 +100,7 @@ export default async function HomePage({ searchParams }: HomeProps) {
               <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
                 Europe
               </span>
-              <br className="hidden sm:block" /> — Find your Scholarship, PhD &amp; Programs
+              <br className="hidden sm:block" /> Scholarship, Funding, PhD 
             </h1>
 
             <p className="mt-5 text-lg leading-relaxed text-blue-100 sm:text-xl">
