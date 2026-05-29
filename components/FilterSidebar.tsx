@@ -10,6 +10,21 @@ const TYPES = ["scholarship", "phd", "postdoc", "fellowship", "grant", "internsh
 const LEVELS = ["undergraduate", "masters", "phd", "postdoc", "any"]
 const FUNDING = ["full", "partial", "stipend", "salary"]
 
+// Research domain → array of substring keywords matched (case-insensitive)
+// against the field_of_study text array on each opportunity. Same labels
+// as the program catalog filter chips so the experience is consistent.
+const RESEARCH_DOMAINS = [
+  { value: "cs_ai", label: "CS / AI", keywords: ["computer", "ai", "artificial intelligence", "data science", "cyber", "software", "machine learning", "information"] },
+  { value: "engineering", label: "Engineering", keywords: ["engineering", "robotics", "mechanical", "electrical", "civil", "chemical", "materials", "aerospace", "energy"] },
+  { value: "science", label: "Science", keywords: ["physics", "chemistry", "biology", "mathematics", "biotech", "environmental", "natural science", "earth", "marine"] },
+  { value: "health", label: "Health / Medicine", keywords: ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"] },
+  { value: "business", label: "Business", keywords: ["business", "management", "finance", "economics", "marketing", "mba", "accounting"] },
+  { value: "social", label: "Social Sciences", keywords: ["social", "political", "law", "international relations", "public policy", "communication", "journalism"] },
+  { value: "arts", label: "Arts & Humanities", keywords: ["arts", "humanities", "design", "philosophy", "history", "music", "literature"] },
+  { value: "agriculture", label: "Agriculture", keywords: ["agriculture", "agronomy", "food", "forestry", "aquaculture"] },
+  { value: "all", label: "All Fields", keywords: [] },
+]
+
 const BD_NATIONALITIES = [
   { code: "BD", label: "Bangladesh" },
   { code: "PK", label: "Pakistan" },
@@ -98,6 +113,20 @@ export function FilterSidebar({ currentFilters }: Props) {
         </div>
       </FilterSection>
 
+      {/* Research Domain / Field of Study */}
+      <FilterSection title="Research Domain">
+        <div className="flex flex-wrap gap-1.5">
+          {RESEARCH_DOMAINS.map((d) => (
+            <FilterChip
+              key={d.value}
+              label={d.label}
+              active={currentFilters.field === d.value}
+              onClick={() => setFilter("field", d.value)}
+            />
+          ))}
+        </div>
+      </FilterSection>
+
       {/* Funding */}
       <FilterSection title="Funding Type">
         <div className="flex flex-wrap gap-1.5">
@@ -113,6 +142,15 @@ export function FilterSidebar({ currentFilters }: Props) {
       </FilterSection>
     </div>
   )
+}
+
+// Map a research domain slug to the array of keyword substrings used to
+// match against opportunity field_of_study values. Imported by
+// lib/supabase.ts::getOpportunities to translate ?field=cs_ai into the
+// actual DB filter.
+export function getDomainKeywords(slug: string): string[] {
+  const d = RESEARCH_DOMAINS.find((x) => x.value === slug)
+  return d?.keywords ?? []
 }
 
 function FilterSection({

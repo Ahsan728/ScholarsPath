@@ -64,6 +64,23 @@ export const adminSupabase = createLazySupabaseClient(() => {
 // OPPORTUNITY QUERIES
 // ============================================================
 
+// Slug → keyword list used by the post-fetch research-domain filter.
+// Mirrors RESEARCH_DOMAINS in components/FilterSidebar.tsx. Keep in sync.
+// Keywords are matched as substrings against a space-padded lowercase
+// join of field_of_study, so leading/trailing spaces give word boundaries
+// (" ai " matches "ai" as a token but not "Spain").
+const DOMAIN_KEYWORDS: Record<string, string[]> = {
+  cs_ai:        ["computer", " ai ", "artificial intelligence", "data science", "cyber", "software", "machine learning", "information technology", "informatics", "computing"],
+  engineering:  ["engineering", "robotics", "mechanical", "electrical", "civil engineering", "chemical engineering", "materials", "aerospace", "energy"],
+  science:      ["physics", "chemistry", "biology", "biological", "mathematics", "biotech", "environmental", "natural science", "earth", "marine", "geosci", " stem ", "life sciences"],
+  health:       ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"],
+  business:     ["business", "management", "finance", "economic", "marketing", " mba ", "accounting", "entrepreneur"],
+  social:       ["social", "political", " law ", "international relations", "public policy", "communication", "journalism"],
+  arts:         [" art ", "humanities", "design", "philosophy", "history", "music", "literature", "fashion"],
+  agriculture:  ["agriculture", "agronomy", " food ", "forestry", "aquaculture"],
+  all:          [],
+}
+
 export async function getOpportunities(filters: SearchFilters): Promise<SearchResult> {
   const {
     query, type, host_country, eligible_for, field, degree_level,
@@ -87,10 +104,12 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   if (eligible_for) {
     qLegacy = qLegacy.or(`eligible_nations.cs.{"ALL"},eligible_nations.cs.{"${eligible_for}"}`)
   }
-  if (field?.length) {
-    qLegacy = qLegacy.overlaps("field_of_study", field)
-    qDisc   = qDisc.overlaps("field_of_study", field)
-  }
+  // Research-domain keyword filter is applied AFTER fetch (post-merge)
+  // because Supabase array columns store free-text values like
+  // "Computer Science" / "Data Science", not the slugs ("cs_ai") used
+  // in the URL. Substring matching against an array column isn't
+  // expressible in a single PostgREST filter; doing it in JS is fine
+  // at the current catalog scale (~850 rows).
   if (degree_level?.length) {
     qLegacy = qLegacy.in("degree_level", degree_level)
     qDisc   = qDisc.in("degree_level", degree_level)
@@ -134,10 +153,23 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   } as Opportunity))
 
   // Merge + sort by recency, then paginate
-  const merged = [...(legacyResp.data ?? []) as Opportunity[], ...discMapped]
+  let merged = [...(legacyResp.data ?? []) as Opportunity[], ...discMapped]
   merged.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
 
-  const totalCount = (legacyResp.count ?? 0) + (discResp.count ?? 0)
+  // Research-domain keyword filter (post-fetch — see comment above)
+  if (field?.length) {
+    const keywords = field.flatMap((slug) => DOMAIN_KEYWORDS[slug] ?? [])
+    if (keywords.length > 0) {
+      merged = merged.filter((opp) => {
+        // Pad with spaces so " ai " etc. match at boundaries
+        const haystack = " " + (opp.field_of_study || []).join("  ").toLowerCase() + " "
+        if (haystack.trim() === "") return false
+        return keywords.some((kw) => haystack.includes(kw))
+      })
+    }
+  }
+
+  const totalCount = field?.length ? merged.length : (legacyResp.count ?? 0) + (discResp.count ?? 0)
   const from = (page - 1) * limit
   const paged = merged.slice(from, from + limit)
 
