@@ -16,7 +16,9 @@ const FUNDING = ["full", "partial", "stipend", "salary"]
 const RESEARCH_DOMAINS = [
   { value: "cs_ai", label: "CS / AI", keywords: ["computer", "ai", "artificial intelligence", "data science", "cyber", "software", "machine learning", "information"] },
   { value: "engineering", label: "Engineering", keywords: ["engineering", "robotics", "mechanical", "electrical", "civil", "chemical", "materials", "aerospace", "energy"] },
-  { value: "science", label: "Science", keywords: ["physics", "chemistry", "biology", "mathematics", "biotech", "environmental", "natural science", "earth", "marine"] },
+  { value: "architecture", label: "Architecture", keywords: ["architecture", "architectural", "urban design", "interior design", "landscape architecture", "urban planning"] },
+  { value: "science", label: "Science", keywords: ["physics", "chemistry", "biology", "mathematics", "biotech", "natural science", "earth", "marine"] },
+  { value: "environment", label: "Environment", keywords: ["environmental", "sustainability", "climate", "renewable", "ecology", "biodiversity", "conservation"] },
   { value: "health", label: "Health / Medicine", keywords: ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"] },
   { value: "business", label: "Business", keywords: ["business", "management", "finance", "economics", "marketing", "mba", "accounting"] },
   { value: "social", label: "Social Sciences", keywords: ["social", "political", "law", "international relations", "public policy", "communication", "journalism"] },

@@ -22,9 +22,12 @@ const levelColors: Record<string, string> = {
 const categoryLabels: Record<string, string> = {
   cs_ai: "CS / AI",
   engineering: "Engineering",
+  architecture: "Architecture",
   business: "Business",
   science: "Science",
+  environment: "Environment",
   health: "Health",
+  agriculture: "Agriculture",
   arts: "Arts & Design",
   social: "Social Sciences",
   languages: "Languages",

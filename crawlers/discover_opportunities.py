@@ -51,6 +51,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.loca
 from crawler_logger import CrawlerRun
 from ai.extract import extract_json, BudgetExceeded, SchemaInvalid
 from aggregator_hosts import is_aggregator_host
+from domain_classifier import classify as classify_domain
 
 SB_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -479,7 +480,9 @@ def upsert_programs(rows: list[dict], source_url: str,
             "duration_years":  p.get("duration_years") or 2,
             "language":        lang or "English",
             "field_of_study":  p.get("field_of_study") or [],
-            "category":        _safe_category(p.get("field_of_study")),
+            # Classify into one of the 9 ScholarsPath filter slugs so the
+            # public filter UI works the moment this row lands.
+            "category":        classify_domain(p.get("field_of_study"), p.get("program_name")),
             "tuition_usd_year": None,
             "ielts_min":       p.get("ielts_min"),
             "gre_required":    False,

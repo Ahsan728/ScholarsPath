@@ -72,7 +72,9 @@ export const adminSupabase = createLazySupabaseClient(() => {
 const DOMAIN_KEYWORDS: Record<string, string[]> = {
   cs_ai:        ["computer", " ai ", "artificial intelligence", "data science", "cyber", "software", "machine learning", "information technology", "informatics", "computing"],
   engineering:  ["engineering", "robotics", "mechanical", "electrical", "civil engineering", "chemical engineering", "materials", "aerospace", "energy"],
-  science:      ["physics", "chemistry", "biology", "biological", "mathematics", "biotech", "environmental", "natural science", "earth", "marine", "geosci", " stem ", "life sciences"],
+  architecture: ["architect", "urban design", "interior design", "landscape architecture", "urban planning"],
+  science:      ["physics", "chemistry", "biology", "biological", "mathematics", "biotech", "natural science", "earth", "marine", "geosci", " stem ", "life sciences"],
+  environment:  ["environmental", "sustainability", "sustainable", "climate", "renewable", "ecology", "biodiversity", "conservation"],
   health:       ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"],
   business:     ["business", "management", "finance", "economic", "marketing", " mba ", "accounting", "entrepreneur"],
   social:       ["social", "political", " law ", "international relations", "public policy", "communication", "journalism"],
