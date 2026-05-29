@@ -45,14 +45,22 @@ SOURCE   = "campus_france_phd"
 
 
 def fetch_rendered(url: str) -> str | None:
+    """Switches the DataTables page-size dropdown to 'Tous' (all) so we
+    get every doctoral school in a single fetch, then snapshots the
+    fully-rendered DOM."""
     try:
         r = httpx.post(
             f"{BROWSER_URL}/fetch",
             headers={"Authorization": f"Bearer {BROWSER_TOKEN}",
                      "Content-Type": "application/json"},
-            json={"url": url, "wait_ms": 5000,
-                  "wait_selector": "tr[id^=\"ED\"]",
-                  "wait_selector_ms": 15000},
+            json={
+                "url": url,
+                "wait_ms": 4000,
+                "wait_selector": "tr[id^=\"ED\"]",
+                "wait_selector_ms": 15000,
+                "select_value": "select[name=\"maintable_length\"]|-1",
+                "select_wait_ms": 6000,
+            },
             timeout=90,
         )
         if r.status_code != 200:
