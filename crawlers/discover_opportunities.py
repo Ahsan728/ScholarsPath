@@ -588,15 +588,18 @@ def process_page(url: str, country_hint: Optional[str],
         return 0
 
     prompt = build_prompt(text, url, country_hint, links_section)
+    # JS-rendered sources (EURAXESS etc.) have larger pages with more
+    # opportunities — give the LLM headroom so the JSON doesn't truncate.
+    max_tokens = 12000 if js_render else 6000
     try:
         data = extract_json(
             prompt=prompt,
             run_id=run.run_id,
             max_usd_per_run=args.max_usd,
             provider=args.provider,
-            max_tokens=6000,
+            max_tokens=max_tokens,
             expected_keys=("opportunities", "programs"),
-            estimated_cost=0.02,
+            estimated_cost=0.04 if js_render else 0.02,
         )
     except BudgetExceeded as e:
         print(f"    BUDGET EXCEEDED — stopping run cleanly: {e}")

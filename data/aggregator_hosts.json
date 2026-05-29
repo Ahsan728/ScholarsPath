@@ -46,7 +46,6 @@
     "scholardigger.com",
     "scholarsavenue.com",
     "applyboard.com",
-    "ec.europa.eu",
     "eacea.ec.europa.eu",
     "erasmus-plus.ec.europa.eu",
     "facebook.com",
@@ -63,7 +62,8 @@
     "wordpress.com"
   ],
   "_meta_notes": [
-    "ec.europa.eu / eacea.ec.europa.eu are EU portal indexes — they point AT opportunities but are not opportunity application pages themselves. Discoverer should look through them to find consortium URLs.",
+    "eacea.ec.europa.eu and erasmus-plus.ec.europa.eu are EU portal indexes — they point AT opportunities but are not opportunity application pages themselves. Discoverer should look through them to find consortium URLs.",
+    "euraxess.ec.europa.eu is intentionally NOT blocked — it is the official EU portal where most PhD/postdoc/researcher positions ARE the apply URL (no separate consortium page exists). Removing the catch-all 'ec.europa.eu' was deliberate.",
     "findaphd.com is on this list because it's an aggregator that fronts opportunities behind a paywall/email-gate; the underlying university page is the right apply URL.",
     "Social media hosts ban any apply_url that's a Facebook/LinkedIn share rather than an official page."
   ]

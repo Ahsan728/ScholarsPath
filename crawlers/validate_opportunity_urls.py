@@ -66,6 +66,14 @@ def classify_url(url: str) -> dict:
     final = str(r.url)
     code = r.status_code
 
+    # HTTP 429 (rate-limited) and 503 (overloaded) mean the URL exists,
+    # the server is just throttling us. Don't mark dead.
+    if code in (429, 503):
+        if is_aggregator_host(final):
+            return {"status": "wrong_domain", "http_code": code, "final_url": final,
+                    "error": f"final host '{urlparse(final).hostname}' is on aggregator blocklist"}
+        return {"status": "ok", "http_code": code, "final_url": final, "error": f"rate-limited ({code})"}
+
     if code >= 400:
         return {"status": "dead", "http_code": code, "final_url": final, "error": f"HTTP {code}"}
 
