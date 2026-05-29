@@ -51,20 +51,27 @@ SB_R   = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
 BROWSER_URL   = os.environ["BROWSER_FETCH_URL"].rstrip("/")
 BROWSER_TOKEN = os.environ["BROWSER_FETCH_TOKEN"]
 
-# /jobs is the landing page (highlights funding bodies); /jobs/search is
-# the real paginated listing endpoint where positions actually live.
+# /jobs is a heavy SPA landing page that renders featured funding bodies.
+# /jobs/search is the real paginated listing endpoint where actual jobs are.
 EURAXESS_BASE = "https://euraxess.ec.europa.eu/jobs/search"
 PROMPT_VERSION = "euraxess-v1"
 
 
 def fetch_page_browser(url: str) -> Optional[str]:
-    """Render via Cloud Run Playwright. Returns HTML text or None."""
+    """Render via Cloud Run Playwright. Returns HTML text or None.
+    Waits for at least one <article> element (job card) so we don't snapshot
+    the empty SPA shell."""
     try:
         r = httpx.post(
             f"{BROWSER_URL}/fetch",
             headers={"Authorization": f"Bearer {BROWSER_TOKEN}",
                      "Content-Type": "application/json"},
-            json={"url": url, "wait_ms": 3000},
+            json={
+                "url": url,
+                "wait_ms": 3000,
+                "wait_selector": "article",
+                "wait_selector_ms": 15000,
+            },
             timeout=90,
         )
         if r.status_code != 200:
@@ -90,23 +97,41 @@ def strip_html(html: str) -> str:
 
 
 def extract_job_links(html: str) -> list[tuple[str, str]]:
-    """Pull (title, absolute_url) pairs for EURAXESS job postings."""
+    """Pull (title, absolute_url) pairs for EURAXESS job postings.
+    Job listing cards have title links like:
+      <h3 class="ecl-content-block__title">
+        <a href="/jobs/441048"><span>PhD student</span></a>
+      </h3>
+    Or for hosted MSCA listings:
+      <a href="/jobs/hosting/msca-pf-2026-...">
+    """
     from urllib.parse import urljoin
     out = []
     seen = set()
-    for href, text in re.findall(
+    # Prefer matches inside h3.ecl-content-block__title — those are the real
+    # job listing cards. Fall back to any /jobs/<id> link if the structure
+    # changes.
+    h3_matches = re.findall(
+        r'<h3[^>]*ecl-content-block__title[^>]*>\s*<a[^>]+href=["\'](/jobs/[^"\']+)["\'][^>]*>(.*?)</a>',
+        html or "", re.I | re.DOTALL,
+    )
+    raw_matches = h3_matches or re.findall(
         r'<a[^>]+href=["\'](/jobs/[^"\']+)["\'][^>]*>(.*?)</a>',
         html or "", re.I | re.DOTALL,
-    ):
+    )
+    for href, text in raw_matches:
         clean = re.sub(r"<[^>]+>", " ", text)
         clean = re.sub(r"\s+", " ", clean).strip()
-        if not clean or len(clean) < 8:
+        if not clean or len(clean) < 5:
+            continue
+        # Skip filter URLs (/jobs/search?f%5B0%5D=...) and the listing
+        # page itself.
+        if "/jobs/search" in href or "?page=" in href:
+            continue
+        if href.rstrip("/") in ("/jobs", "/jobs/search"):
             continue
         full = urljoin("https://euraxess.ec.europa.eu", href)
         if full in seen:
-            continue
-        # Skip the listing-page URL itself
-        if "?page=" in href or href.rstrip("/").endswith("/jobs"):
             continue
         seen.add(full)
         out.append((clean[:300], full))
