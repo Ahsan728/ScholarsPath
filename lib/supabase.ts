@@ -106,15 +106,16 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   if (eligible_for) {
     qLegacy = qLegacy.or(`eligible_nations.cs.{"ALL"},eligible_nations.cs.{"${eligible_for}"}`)
   }
-  // Research-domain filter. discovered_opportunities and opportunities
-  // both now carry a `category` slug populated by the classifier at
-  // insert time. Filter server-side on that single column — much faster
-  // and reliable than substring matching against free-text
-  // field_of_study (which is often empty or in French / German).
+  // Research-domain filter. discovered_opportunities carries a category
+  // slug populated by the classifier at insert time. We always include
+  // 'general' alongside the user's selection so that field-agnostic
+  // scholarships ("Diritto allo Studio", regional grants) appear under
+  // every specific domain filter — those scholarships apply to any
+  // field, so a student filtering by "CS/AI" should still see them.
   // Legacy `opportunities` table never had a category column; we keep
   // the post-fetch JS filter for that table only.
   if (field?.length) {
-    qDisc = qDisc.in("category", field)
+    qDisc = qDisc.in("category", [...field, "general"])
   }
   if (degree_level?.length) {
     qLegacy = qLegacy.in("degree_level", degree_level)

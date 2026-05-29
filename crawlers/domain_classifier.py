@@ -91,7 +91,12 @@ _RULES: list[tuple[str, set[str]]] = [
     }),
 ]
 
-_DEFAULT = "science"
+# Generic catch-all for rows whose text doesn't clearly fit a specific
+# domain (e.g. "Italian Regional Diritto allo Studio scholarship" — the
+# winner can study any field). These show under "All Fields" but NOT
+# under specific filter chips like "Science" or "CS/AI", so filter
+# results stay precise.
+_DEFAULT = "general"
 
 _WS = re.compile(r"\s+")
 
