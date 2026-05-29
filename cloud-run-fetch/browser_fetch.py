@@ -48,10 +48,14 @@ class FetchRequest(BaseModel):
     # If set, after waiting Playwright will scroll the page to trigger
     # lazy-loading or infinite scroll. Number of full-viewport scrolls.
     scroll_count: int = 0
-    # If set, the request body can request the page be navigated to
-    # `?page=N` style URLs through `goto` rather than via a click —
-    # already covered by url, but kept here for symmetry.
-    max_html_chars: int = 1_000_000
+    # Click-pagination: after the initial render, click `click_selector`
+    # up to `click_loop_max` times, waiting `click_wait_ms` between each
+    # click. After all clicks, snapshot the final DOM. Used for Campus
+    # France DataTables, EURAXESS "load more" patterns, etc.
+    click_selector: str | None = None
+    click_loop_max: int = 0
+    click_wait_ms: int = 1500
+    max_html_chars: int = 1_500_000
 
 
 class FetchResponse(BaseModel):
@@ -59,6 +63,7 @@ class FetchResponse(BaseModel):
     status: int
     final_url: str
     error: str | None = None
+    clicks_done: int = 0
 
 
 def check_auth(authorization: str | None) -> None:
@@ -155,6 +160,37 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
                     await page.evaluate("window.scrollBy(0, window.innerHeight)")
                     await page.wait_for_timeout(700)
 
+                # Click-pagination loop: click the given selector up to
+                # click_loop_max times, waiting click_wait_ms between
+                # each. Stops early if the selector disappears (button
+                # was hidden/disabled because we hit the last page) or
+                # if the click itself errors. Capped at 50 clicks total
+                # to stay under Cloud Run's 60s timeout.
+                clicks_done = 0
+                if req.click_selector and req.click_loop_max > 0:
+                    cap = min(int(req.click_loop_max), 50)
+                    wait_ms_click = max(500, min(int(req.click_wait_ms), 5_000))
+                    for _ in range(cap):
+                        try:
+                            btn = await page.query_selector(req.click_selector)
+                            if not btn:
+                                break
+                            # Skip if disabled / hidden — we've reached the last page
+                            try:
+                                is_disabled = await btn.get_attribute("disabled")
+                                if is_disabled is not None:
+                                    break
+                                is_visible = await btn.is_visible()
+                                if not is_visible:
+                                    break
+                            except Exception:
+                                pass
+                            await btn.click(timeout=3_000)
+                            await page.wait_for_timeout(wait_ms_click)
+                            clicks_done += 1
+                        except Exception:
+                            break
+
                 html = await page.content()
                 html = html[: req.max_html_chars]
             finally:
@@ -164,4 +200,5 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
         if status == 0:
             status = 599  # synthetic: client-side failure (timeout, navigation error)
 
-    return FetchResponse(html=html, status=status, final_url=final_url, error=error)
+    return FetchResponse(html=html, status=status, final_url=final_url,
+                         error=error, clicks_done=clicks_done if 'clicks_done' in locals() else 0)
