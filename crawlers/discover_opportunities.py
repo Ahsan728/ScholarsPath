@@ -365,6 +365,12 @@ def upsert_opportunities(rows: list[dict], source_id: Optional[str],
             "country":        opp["country"],
             "degree_level":   opp.get("degree_level"),
             "field_of_study": opp.get("field_of_study") or [],
+            # Normalize free-text fields into one of the 11 standard
+            # ScholarsPath domain slugs so the homepage filter works.
+            "category":       classify_domain(
+                opp.get("field_of_study"),
+                f"{opp.get('title','')} {opp.get('description','')}",
+            ),
             "amount_usd":     opp.get("amount_usd"),
             "amount_text":    (opp.get("amount_text") or "")[:300] or None,
             "funding_type":   opp.get("funding_type"),

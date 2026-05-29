@@ -174,6 +174,7 @@ def insert(row: dict, dry_run: bool) -> bool:
         "country":        "France",
         "degree_level":   "phd",
         "field_of_study": [field, title] if field else [title],
+        "category":       category,
         "amount_text":    None,
         "funding_type":   None,
         "eligibility_text": None,

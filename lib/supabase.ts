@@ -106,12 +106,16 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   if (eligible_for) {
     qLegacy = qLegacy.or(`eligible_nations.cs.{"ALL"},eligible_nations.cs.{"${eligible_for}"}`)
   }
-  // Research-domain keyword filter is applied AFTER fetch (post-merge)
-  // because Supabase array columns store free-text values like
-  // "Computer Science" / "Data Science", not the slugs ("cs_ai") used
-  // in the URL. Substring matching against an array column isn't
-  // expressible in a single PostgREST filter; doing it in JS is fine
-  // at the current catalog scale (~850 rows).
+  // Research-domain filter. discovered_opportunities and opportunities
+  // both now carry a `category` slug populated by the classifier at
+  // insert time. Filter server-side on that single column — much faster
+  // and reliable than substring matching against free-text
+  // field_of_study (which is often empty or in French / German).
+  // Legacy `opportunities` table never had a category column; we keep
+  // the post-fetch JS filter for that table only.
+  if (field?.length) {
+    qDisc = qDisc.in("category", field)
+  }
   if (degree_level?.length) {
     qLegacy = qLegacy.in("degree_level", degree_level)
     qDisc   = qDisc.in("degree_level", degree_level)
@@ -158,12 +162,16 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
   let merged = [...(legacyResp.data ?? []) as Opportunity[], ...discMapped]
   merged.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
 
-  // Research-domain keyword filter (post-fetch — see comment above)
+  // Legacy opportunities table doesn't have a category column. Apply
+  // the keyword filter only to legacy rows (already in `merged` mixed
+  // with discovered rows — distinguish by source_name).
   if (field?.length) {
     const keywords = field.flatMap((slug) => DOMAIN_KEYWORDS[slug] ?? [])
     if (keywords.length > 0) {
       merged = merged.filter((opp) => {
-        // Pad with spaces so " ai " etc. match at boundaries
+        // discovered rows already passed the DB filter — keep them all
+        if ((opp as any).source_name === "discoverer") return true
+        // Legacy rows: substring match against field_of_study text
         const haystack = " " + (opp.field_of_study || []).join("  ").toLowerCase() + " "
         if (haystack.trim() === "") return false
         return keywords.some((kw) => haystack.includes(kw))

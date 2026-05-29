@@ -41,6 +41,7 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.loca
 from crawler_logger import CrawlerRun
 from ai.extract import extract_json, BudgetExceeded, SchemaInvalid
 from aggregator_hosts import is_aggregator_host
+from domain_classifier import classify as classify_domain
 
 SB_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -205,6 +206,10 @@ def insert_opportunity(opp: dict, page_no: int, content_hash: str,
         "country":        country,
         "degree_level":   opp.get("degree_level") or "any",
         "field_of_study": opp.get("field_of_study") or [],
+        "category":       classify_domain(
+            opp.get("field_of_study"),
+            f"{title} {opp.get('description','')}",
+        ),
         "amount_text":    None,
         "funding_type":   None,
         "eligibility_text": None,
