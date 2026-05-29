@@ -88,8 +88,46 @@ REQ_HEADERS = {"User-Agent": UA, "Accept": "text/html,*/*;q=0.5"}
 
 
 # ── HTTP + extraction helpers ─────────────────────────────────
-def fetch_page(url: str) -> Optional[str]:
-    """GET and return the raw HTML, or None if unreachable / non-text."""
+BROWSER_FETCH_URL = os.environ.get("BROWSER_FETCH_URL", "").rstrip("/")
+BROWSER_FETCH_TOKEN = os.environ.get("BROWSER_FETCH_TOKEN", "")
+
+
+def fetch_page_browser(url: str) -> Optional[str]:
+    """Render the page via the Cloud Run Playwright service. Returns HTML
+    or None on failure. Used for sources flagged js_render=true."""
+    if not BROWSER_FETCH_URL or not BROWSER_FETCH_TOKEN:
+        print(f"    js_render requested but BROWSER_FETCH_URL/TOKEN not set", flush=True)
+        return None
+    try:
+        r = httpx.post(
+            f"{BROWSER_FETCH_URL}/fetch",
+            headers={"Authorization": f"Bearer {BROWSER_FETCH_TOKEN}",
+                     "Content-Type": "application/json"},
+            json={"url": url},
+            timeout=60,
+        )
+        if r.status_code != 200:
+            print(f"    browser-fetch HTTP {r.status_code}: {r.text[:200]}", flush=True)
+            return None
+        data = r.json()
+        html = data.get("html") or ""
+        if not html or data.get("status", 0) >= 400:
+            print(f"    browser-fetch returned status={data.get('status')} err={data.get('error')}", flush=True)
+            return None
+        return html
+    except Exception as e:
+        print(f"    browser-fetch error: {e}", flush=True)
+        return None
+
+
+def fetch_page(url: str, js_render: bool = False) -> Optional[str]:
+    """GET and return the raw HTML, or None if unreachable / non-text.
+
+    If js_render=true, routes through the Cloud Run Playwright service
+    instead. The source row's js_render column drives this.
+    """
+    if js_render:
+        return fetch_page_browser(url)
     try:
         r = httpx.get(url, headers=REQ_HEADERS, timeout=20, follow_redirects=True)
         if r.status_code != 200:
@@ -143,7 +181,7 @@ def fetch_queue_1(args) -> list[dict]:
     """opportunity_sources rows ordered by staleness (NULLs first, then oldest)."""
     base = f"{SB_URL}/rest/v1/opportunity_sources"
     params = {
-        "select": "id,url,country,scope,title,last_crawled_at",
+        "select": "id,url,country,scope,title,last_crawled_at,js_render",
         "order":  "last_crawled_at.asc.nullsfirst",
         "limit":  str(args.limit or 100),
     }
@@ -500,14 +538,29 @@ def upsert_programs(rows: list[dict], source_url: str,
 # ── Per-page worker ───────────────────────────────────────────
 def process_page(url: str, country_hint: Optional[str],
                  source_id: Optional[str], run: CrawlerRun,
-                 args, last_hash_by_url: dict[str, str]) -> int:
-    html = fetch_page(url)
+                 args, last_hash_by_url: dict[str, str],
+                 js_render: bool = False) -> int:
+    html = fetch_page(url, js_render=js_render)
     if not html:
         run.event("warn", target_url=url, message="fetch failed")
         run.skipped()
         return 0
 
     text = strip_html(html)
+    # Auto-detect SPA shells: if a non-js-render source returned <500
+    # chars of text, flag it for js_render next time so the next sweep
+    # routes it through Cloud Run automatically.
+    if not js_render and source_id and text and len(text) < 500:
+        try:
+            httpx.patch(
+                f"{SB_URL}/rest/v1/opportunity_sources?id=eq.{source_id}",
+                headers=SB_H, json={"js_render": True}, timeout=10,
+            )
+            run.event("info", target_url=url,
+                      message=f"auto-flagged js_render=true (only {len(text)} chars rendered)")
+        except Exception:
+            pass
+
     if not text or len(text) < 200:
         run.event("warn", target_url=url, message="no extractable text")
         run.skipped()
@@ -623,6 +676,7 @@ def main():
                         run=run,
                         args=args,
                         last_hash_by_url=last_hash_by_url,
+                        js_render=bool(row.get("js_render")),
                     )
                 except BudgetExceeded:
                     run.event("warn", message="budget reached — stopping queue")

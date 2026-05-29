@@ -1,0 +1,9 @@
+# Files NOT to upload when running `gcloud run deploy --source .`
+# Keeps the build context small + fast.
+.git
+.gitignore
+README.md
+*.pyc
+__pycache__/
+.venv/
+node_modules/
