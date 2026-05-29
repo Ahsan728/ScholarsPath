@@ -40,7 +40,18 @@ COOKIE_BUTTONS = [
 class FetchRequest(BaseModel):
     url: HttpUrl
     wait_ms: int = 1500          # extra wait after networkidle
-    max_html_chars: int = 500_000
+    # If set, after navigation Playwright will wait up to `wait_selector_ms`
+    # for at least one matching element to appear. Lets SPAs finish their
+    # initial XHR before we snapshot.
+    wait_selector: str | None = None
+    wait_selector_ms: int = 15_000
+    # If set, after waiting Playwright will scroll the page to trigger
+    # lazy-loading or infinite scroll. Number of full-viewport scrolls.
+    scroll_count: int = 0
+    # If set, the request body can request the page be navigated to
+    # `?page=N` style URLs through `goto` rather than via a click —
+    # already covered by url, but kept here for symmetry.
+    max_html_chars: int = 1_000_000
 
 
 class FetchResponse(BaseModel):
@@ -116,10 +127,33 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
                     except Exception:
                         continue
 
+                # If caller specified a selector to wait for (e.g. ".job-item"),
+                # block until at least one appears or we time out. This is how
+                # we handle heavy SPAs (EURAXESS, Campus France catalogs)
+                # whose initial HTML is just an empty mount point.
+                if req.wait_selector:
+                    try:
+                        await page.wait_for_selector(
+                            req.wait_selector,
+                            timeout=min(max(req.wait_selector_ms, 1_000), 30_000),
+                        )
+                    except Exception:
+                        # Not finding the selector isn't fatal; we still
+                        # return whatever rendered so the caller can decide.
+                        pass
+
                 # Extra wait for late JS/AJAX.
-                wait_ms = max(0, min(req.wait_ms, 5_000))
+                wait_ms = max(0, min(req.wait_ms, 15_000))
                 if wait_ms:
                     await page.wait_for_timeout(wait_ms)
+
+                # Scroll to trigger lazy-loaded content (infinite scroll
+                # patterns common on catalog UIs). Capped to keep the
+                # function under Cloud Run's 60s timeout.
+                scroll_count = max(0, min(req.scroll_count, 20))
+                for _ in range(scroll_count):
+                    await page.evaluate("window.scrollBy(0, window.innerHeight)")
+                    await page.wait_for_timeout(700)
 
                 html = await page.content()
                 html = html[: req.max_html_chars]

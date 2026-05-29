@@ -51,7 +51,9 @@ SB_R   = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}"}
 BROWSER_URL   = os.environ["BROWSER_FETCH_URL"].rstrip("/")
 BROWSER_TOKEN = os.environ["BROWSER_FETCH_TOKEN"]
 
-EURAXESS_BASE = "https://euraxess.ec.europa.eu/jobs"
+# /jobs is the landing page (highlights funding bodies); /jobs/search is
+# the real paginated listing endpoint where positions actually live.
+EURAXESS_BASE = "https://euraxess.ec.europa.eu/jobs/search"
 PROMPT_VERSION = "euraxess-v1"
 
 
