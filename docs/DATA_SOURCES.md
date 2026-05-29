@@ -3,16 +3,22 @@
 Every data source ScholarsPath has used or plans to use, with current row
 counts and the URL/document of origin. Update after each enrichment run.
 
-**Last refreshed:** 2026-05-29 (after Phase 1B EURAXESS smoke test)
+**Last refreshed:** 2026-05-30 (after Campus France PhD full sweep)
 
 ## Catalog totals (active rows only)
 
 | Catalog | Count |
 |---|---:|
-| `masters_programs` (active) | **7,604** |
-| `discovered_opportunities` (active) | **850** |
+| `masters_programs` (active) | **7,754** (+150 today) |
+| `discovered_opportunities` (active) | **1,133** (+283 today) |
 | `opportunities` (legacy) | 64 |
-| `opportunity_sources` (registry) | 660 |
+| `opportunity_sources` (registry) | 674 |
+
+### Today's additions (2026-05-30)
+- **+271 Campus France French doctoral schools** (ED 60 to ED 642), 100% Phase 0 pass
+- **+80 Hungary curated programs** (Hungary doubled: 71 → 142)
+- **+10 Campus France PhDs from yesterday's partial run** (now superseded by full sweep)
+- **Architecture + Environment** filter categories added; 2,924 programs re-categorized
 
 ---
 
@@ -100,12 +106,13 @@ to the actual consortium homepage (e.g. `resco-master.eu`,
 
 ## Opportunities — by source
 
-### Discovered_opportunities (850 active)
+### Discovered_opportunities (1,133 active)
 
 | Provenance | Count | Notes |
 |---|---:|---|
-| Standard Discoverer extraction (`prompt_version='v1'`) | 820 | Italian regional portals + university scholarship pages |
-| EURAXESS via Cloud Run (`prompt_version='euraxess-v1'` or apply_url contains 'euraxess') | 41 | First page only — pagination broken, see Issues |
+| **Campus France PhD Schools** (`prompt_version='campus-france-phd-v1'`) | **281** | All French Ecoles Doctorales (ED60–ED642). Fetched in one Cloud Run call with `select_value` dropdown trick (set "Tous" = All). 100% Phase 0 pass. |
+| Standard Discoverer extraction (`prompt_version='v1'`) | ~820 | Italian regional portals + university scholarship pages |
+| EURAXESS via Cloud Run (`prompt_version='euraxess-v1'` or apply_url contains 'euraxess') | 41 | First page only — pagination is client-side JS, would need click-collect mode |
 | Haiku-knowledge seed (`prompt_version='haiku-seed-v1'`) | 30 | DAAD, MSCA, EMBO, CERN, etc. — Phase 0 audit caught the dead URLs |
 
 Top opportunity source hosts (sample):
@@ -165,29 +172,29 @@ Notable entries:
 
 ---
 
-## Phase 1C planned sources (not yet processed)
+## Phase 1C status (2026-05-30)
 
-Expected to add ~10,000–13,000 trusted rows. See plan file:
-`C:\Users\YOU TECH BD\.claude\plans\async-skipping-anchor.md`
+See plan file: `C:\Users\YOU TECH BD\.claude\plans\async-skipping-anchor.md`
 
-| # | Source | Type | Est. yield |
-|---|---|---|---:|
-| 1 | EURAXESS pagination (320 pages) | PhD/Postdoc (pan-EU) | 5,000-8,000 |
-| 2 | Campus France PhD Schools | French PhD programs | ~200 |
-| 3 | Campus France Licence | French Bachelors | ~500 |
-| 4 | Campus France Master | French Masters | ~1,500 |
-| 5 | Campus France Bourses | French scholarships | ~300 |
-| 6 | Study in Italy (esteri.it) | IT programs + scholarships | ~500-1,000 |
-| 7 | Study in Hungary (studyinhungary.hu) | HU programs + Stipendium Hungaricum | ~400+50 |
-| 8 | Hungary university seed (ELTE, BME, CEU, Szeged, Debrecen, Corvinus, Semmelweis, Pécs) | HU programs | ~300 |
-| 9 | EU funding bodies (DFG, CNRS, NWO, FCT, FWF, SNF) | Pan-EU grants | ~400 |
-| 10 | Re-run Phase 1A on remaining ~50 unis + re-validate | mixed | ~500 |
+| # | Source | Type | Estimate | Actual | Status |
+|---|---|---|---:|---:|---|
+| 1 | EURAXESS pagination | PhD/Postdoc (pan-EU) | 5,000-8,000 | 41 | ⚠️ Page 1 only — pagination not yet solved |
+| 2 | Campus France PhD Schools | French PhD programs | ~200 | **281** | ✅ Complete |
+| 3 | Campus France Licence | French Bachelors | ~500 | 0 | ⚠️ SPA search UI — needs per-filter sweep |
+| 4 | Campus France Master | French Masters | ~1,500 | 0 | ⚠️ Same as Licence |
+| 5 | Campus France Bourses | French scholarships | ~300 | 0 | ⚠️ Same as Licence |
+| 6 | Study in Italy (esteri.it) | IT programs + scholarships | ~500-1,000 | 0 | ⚠️ Portal is informational, not a database |
+| 7 | Study in Hungary (studyinhungary.hu) | HU scholarship info | ~400+50 | 0 | ⚠️ Same — informational |
+| 8 | Hungary university curated seed | HU programs | ~300 | **80** | ✅ Complete (Hungary 71 → 142) |
+| 9 | EU funding bodies (DFG, CNRS, NWO, FCT) | Pan-EU grants | ~400 | 0 | 📋 Not started |
+| 10 | Re-run Phase 1A on remaining ~50 unis | mixed | ~500 | 0 | 📋 Not started |
 
 ---
 
 ## Known issues / quality follow-ups
 
-- **EURAXESS pagination broken** (2026-05-29): `?page=N` query param doesn't change the result set — the SPA uses internal routing. Need to inspect actual URL pattern or use Playwright click-through pagination.
+- **EURAXESS pagination** (2026-05-29, still open): `?page=N` doesn't change the SPA's result set; pagination is purely client-side via "Load More" / "Next" buttons that REPLACE rows (don't append). Click-pagination is shipped in browser_fetch but our pages have replace-mode behavior. Future: add a `collect_clicks` mode that snapshots HTML at each click step and concatenates.
+- **Campus France Licence/Master/Bourses catalogs** (2026-05-30): All three are hash-routed Vue SPAs with empty mount points (5.5k chars rendered). They're search interfaces, not browsable lists — the user must select a region/domain/keyword before content renders. Would need a per-filter sweep (many fetches) or a different scraping approach.
 - **FindAPhD / ScholarshipPortal / AcademicPositions** return 403 to our headless Chromium. They detect Playwright. Future: integrate `playwright-stealth`.
 - **Mastersportal text dumps are static snapshots** — they were copy-pasted from the live site at a point in time. New programs added by Mastersportal after that date aren't in our catalog unless re-pasted. Monthly cron does not refresh these.
 
