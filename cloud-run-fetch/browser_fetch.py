@@ -55,6 +55,11 @@ class FetchRequest(BaseModel):
     click_selector: str | None = None
     click_loop_max: int = 0
     click_wait_ms: int = 1500
+    # Change a <select> dropdown value before snapshot. Useful for
+    # "rows per page" controls. Format: "selector|value".
+    # Example: 'select[name="maintable_length"]|-1'
+    select_value: str | None = None
+    select_wait_ms: int = 2500
     max_html_chars: int = 1_500_000
 
 
@@ -151,6 +156,18 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
                 wait_ms = max(0, min(req.wait_ms, 15_000))
                 if wait_ms:
                     await page.wait_for_timeout(wait_ms)
+
+                # Change a <select> value (e.g. rows-per-page dropdown)
+                # before clicks/scrolls. select_value is "selector|value".
+                if req.select_value and "|" in req.select_value:
+                    sel, val = req.select_value.split("|", 1)
+                    try:
+                        await page.select_option(sel.strip(), val.strip())
+                        await page.wait_for_timeout(
+                            max(500, min(int(req.select_wait_ms), 8_000))
+                        )
+                    except Exception:
+                        pass
 
                 # Scroll to trigger lazy-loaded content (infinite scroll
                 # patterns common on catalog UIs). Capped to keep the
