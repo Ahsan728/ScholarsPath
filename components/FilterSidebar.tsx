@@ -10,6 +10,31 @@ const TYPES = ["scholarship", "phd", "postdoc", "fellowship", "grant", "internsh
 const LEVELS = ["undergraduate", "masters", "phd", "postdoc", "any"]
 const FUNDING = ["full", "partial", "stipend", "salary"]
 
+// European countries with ≥10 active opportunities, ordered by count
+// so the most populated chips render first. Values match DB country
+// names (full English) used in discovered_opportunities.country.
+const COUNTRIES = [
+  { value: "France",         label: "🇫🇷 France" },
+  { value: "Germany",        label: "🇩🇪 Germany" },
+  { value: "Italy",          label: "🇮🇹 Italy" },
+  { value: "Spain",          label: "🇪🇸 Spain" },
+  { value: "Sweden",         label: "🇸🇪 Sweden" },
+  { value: "Netherlands",    label: "🇳🇱 Netherlands" },
+  { value: "United Kingdom", label: "🇬🇧 UK" },
+  { value: "Ireland",        label: "🇮🇪 Ireland" },
+  { value: "Austria",        label: "🇦🇹 Austria" },
+  { value: "Belgium",        label: "🇧🇪 Belgium" },
+  { value: "Czech Republic", label: "🇨🇿 Czechia" },
+  { value: "Poland",         label: "🇵🇱 Poland" },
+  { value: "Portugal",       label: "🇵🇹 Portugal" },
+  { value: "Finland",        label: "🇫🇮 Finland" },
+  { value: "Switzerland",    label: "🇨🇭 Switzerland" },
+  { value: "Hungary",        label: "🇭🇺 Hungary" },
+  { value: "Denmark",        label: "🇩🇰 Denmark" },
+  { value: "Norway",         label: "🇳🇴 Norway" },
+  { value: "Luxembourg",     label: "🇱🇺 Luxembourg" },
+]
+
 // Research domain → array of substring keywords matched (case-insensitive)
 // against the field_of_study text array on each opportunity. Same labels
 // as the program catalog filter chips so the experience is consistent.
@@ -82,6 +107,20 @@ export function FilterSidebar({ currentFilters }: Props) {
               label={label}
               active={currentFilters.for === code}
               onClick={() => setFilter("for", code)}
+            />
+          ))}
+        </div>
+      </FilterSection>
+
+      {/* Country */}
+      <FilterSection title="Country">
+        <div className="flex flex-wrap gap-1.5">
+          {COUNTRIES.map(({ value, label }) => (
+            <FilterChip
+              key={value}
+              label={label}
+              active={currentFilters.country === value}
+              onClick={() => setFilter("country", value)}
             />
           ))}
         </div>
