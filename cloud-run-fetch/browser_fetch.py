@@ -55,6 +55,12 @@ class FetchRequest(BaseModel):
     click_selector: str | None = None
     click_loop_max: int = 0
     click_wait_ms: int = 1500
+    # When true, snapshot the DOM BEFORE each click and concatenate all
+    # snapshots into the returned HTML (separated by '<!-- PAGE BREAK -->').
+    # Use for sources whose "Next" button REPLACES rows (Campus France
+    # PhD Calls/Offers, EURAXESS jobs) so each visited page's content
+    # is preserved.
+    collect_pages: bool = False
     # Change a <select> dropdown value before snapshot. Useful for
     # "rows per page" controls. Format: "selector|value".
     # Example: 'select[name="maintable_length"]|-1'
@@ -183,10 +189,17 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
                 # was hidden/disabled because we hit the last page) or
                 # if the click itself errors. Capped at 50 clicks total
                 # to stay under Cloud Run's 60s timeout.
+                #
+                # When collect_pages=true, snapshot DOM before each click
+                # (and after the final click) and concatenate. Use for
+                # "Next" buttons that replace rows.
                 clicks_done = 0
+                page_snapshots: list[str] = []
                 if req.click_selector and req.click_loop_max > 0:
                     cap = min(int(req.click_loop_max), 50)
                     wait_ms_click = max(500, min(int(req.click_wait_ms), 5_000))
+                    if req.collect_pages:
+                        page_snapshots.append(await page.content())
                     for _ in range(cap):
                         try:
                             btn = await page.query_selector(req.click_selector)
@@ -205,10 +218,15 @@ async def fetch(req: FetchRequest, authorization: str | None = Header(default=No
                             await btn.click(timeout=3_000)
                             await page.wait_for_timeout(wait_ms_click)
                             clicks_done += 1
+                            if req.collect_pages:
+                                page_snapshots.append(await page.content())
                         except Exception:
                             break
 
-                html = await page.content()
+                if req.collect_pages and page_snapshots:
+                    html = "\n<!-- PAGE BREAK -->\n".join(page_snapshots)
+                else:
+                    html = await page.content()
                 html = html[: req.max_html_chars]
             finally:
                 await browser.close()
