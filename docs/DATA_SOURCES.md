@@ -3,22 +3,25 @@
 Every data source ScholarsPath has used or plans to use, with current row
 counts and the URL/document of origin. Update after each enrichment run.
 
-**Last refreshed:** 2026-05-30 (after Campus France PhD full sweep)
+**Last refreshed:** 2026-05-30 (after Campus France PhD Offers sweep + IT/ES/FR curated)
 
 ## Catalog totals (active rows only)
 
 | Catalog | Count |
 |---|---:|
-| `masters_programs` (active) | **7,754** (+150 today) |
-| `discovered_opportunities` (active) | **1,133** (+283 today) |
+| `masters_programs` (active) | **~7,963** (+359 since 2026-05-29) |
+| `discovered_opportunities` (active) | **1,220** (+370 since 2026-05-29) |
 | `opportunities` (legacy) | 64 |
-| `opportunity_sources` (registry) | 674 |
+| `opportunity_sources` (registry) | 691 |
 
-### Today's additions (2026-05-30)
-- **+271 Campus France French doctoral schools** (ED 60 to ED 642), 100% Phase 0 pass
+### Additions across 2026-05-30 (cumulative)
+- **+271 Campus France PhD Schools** (ED 60 to ED 642), 100% Phase 0 pass
+- **+87 Campus France PhD Offers** (specific positions, 15-page collect_pages sweep)
 - **+80 Hungary curated programs** (Hungary doubled: 71 → 142)
-- **+10 Campus France PhDs from yesterday's partial run** (now superseded by full sweep)
+- **+281 IT/ES/FR curated programs** (94 + 93 + 94)
 - **Architecture + Environment** filter categories added; 2,924 programs re-categorized
+- **Opportunity domain filter fix** (category column + classifier + filter inclusivity)
+- **collect_pages mode** in browser-fetch (unlocks click-replace paginated SPAs)
 
 ---
 
@@ -180,6 +183,7 @@ See plan file: `C:\Users\YOU TECH BD\.claude\plans\async-skipping-anchor.md`
 |---|---|---|---:|---:|---|
 | 1 | EURAXESS pagination | PhD/Postdoc (pan-EU) | 5,000-8,000 | 41 | ⚠️ Page 1 only — pagination not yet solved |
 | 2 | Campus France PhD Schools | French PhD programs | ~200 | **281** | ✅ Complete |
+| 2b | Campus France PhD Offers | Specific French PhD positions | ~100 | **87** | ✅ Complete (15-page collect_pages sweep) |
 | 3 | Campus France Licence | French Bachelors | ~500 | 0 | ⚠️ SPA search UI — needs per-filter sweep |
 | 4 | Campus France Master | French Masters | ~1,500 | 0 | ⚠️ Same as Licence |
 | 5 | Campus France Bourses | French scholarships | ~300 | 0 | ⚠️ Same as Licence |
@@ -193,7 +197,7 @@ See plan file: `C:\Users\YOU TECH BD\.claude\plans\async-skipping-anchor.md`
 
 ## Known issues / quality follow-ups
 
-- **EURAXESS pagination** (2026-05-29, still open): `?page=N` doesn't change the SPA's result set; pagination is purely client-side via "Load More" / "Next" buttons that REPLACE rows (don't append). Click-pagination is shipped in browser_fetch but our pages have replace-mode behavior. Future: add a `collect_clicks` mode that snapshots HTML at each click step and concatenates.
+- **EURAXESS pagination** (still blocked after 2026-05-30 retry): `collect_pages` mode is now shipped in browser_fetch and works for Campus France DataTables. But on EURAXESS, the Next button navigates to `/jobs/search?page=N` which returns an empty SPA shell — even Playwright can't render content at those URLs. Server-side returns 200 + 35k chars of shell only; first page `/jobs/search` (no params) returns 715k chars of real content. Their JS app loads via session state we can't preserve across a navigation. Future paths: (a) intercept network XHR requests to find the underlying API, (b) try persistent context with cookies, (c) wait for EURAXESS to expose a public REST API.
 - **Campus France Licence/Master/Bourses catalogs** (2026-05-30): All three are hash-routed Vue SPAs with empty mount points (5.5k chars rendered). They're search interfaces, not browsable lists — the user must select a region/domain/keyword before content renders. Would need a per-filter sweep (many fetches) or a different scraping approach.
 - **FindAPhD / ScholarshipPortal / AcademicPositions** return 403 to our headless Chromium. They detect Playwright. Future: integrate `playwright-stealth`.
 - **Mastersportal text dumps are static snapshots** — they were copy-pasted from the live site at a point in time. New programs added by Mastersportal after that date aren't in our catalog unless re-pasted. Monthly cron does not refresh these.
