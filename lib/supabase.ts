@@ -90,9 +90,19 @@ export async function getOpportunities(filters: SearchFilters): Promise<SearchRe
     page = 1, limit = 20,
   } = filters
 
-  // Query BOTH tables in parallel
+  // Query BOTH tables in parallel.
+  // Phase 0 gate on discovered_opportunities: only surface rows whose
+  // apply_url HEAD-checked OK AND whose target page actually contains
+  // the opportunity title. Excludes dead URLs, generic-page hits, and
+  // unchecked rows so users don't click through to broken or wrong
+  // pages. Legacy `opportunities` table predates Phase 0 — leave it
+  // unfiltered; it's small and was hand-curated.
   let qLegacy = adminSupabase.from("opportunities").select("*", { count: "exact" })
-  let qDisc   = adminSupabase.from("discovered_opportunities").select("*", { count: "exact" }).eq("is_active", true)
+  let qDisc   = adminSupabase.from("discovered_opportunities")
+    .select("*", { count: "exact" })
+    .eq("is_active", true)
+    .eq("url_status", "ok")
+    .in("page_status", ["specific_match", "name_changed"])
 
   if (status) qLegacy = qLegacy.eq("status", status)
   if (type?.length) {

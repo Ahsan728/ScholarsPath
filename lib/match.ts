@@ -42,6 +42,12 @@ export async function getActivePrograms(filters: ProgramFilters = {}): Promise<{
     .from("masters_programs")
     .select("*", { count: "exact" })
     .eq("is_active", true)
+    // Phase 0 gate: only surface programs whose apply_url HEAD-checked
+    // OK AND whose target page actually contains the program name.
+    // Hides dead-URL, generic-faculty-page, and unchecked rows so
+    // users don't click through to broken or wrong pages.
+    .eq("url_status", "ok")
+    .in("page_status", ["specific_english", "name_changed"])
 
   // When emjm_only is on, country filter is intentionally ignored — EMJM
   // programs are multi-country consortia and our country column only
