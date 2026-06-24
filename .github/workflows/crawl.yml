@@ -1,9 +1,12 @@
-name: Daily Scholarship Crawl
+name: Weekly Scholarship Crawl
 
 on:
   schedule:
-    # Run every day at 06:00 UTC (12:00 BD time)
-    - cron: "0 6 * * *"
+    # Run every Sunday at 06:00 UTC (12:00 BD time). Weekly cadence
+    # gives the catalog ~quarterly refresh on each source while
+    # keeping monthly Haiku spend predictable; the Discoverer is
+    # idempotent (fingerprint dedup) so re-runs are safe.
+    - cron: "0 6 * * 0"
   workflow_dispatch:
     inputs:
       source:
@@ -43,9 +46,13 @@ jobs:
 
       - name: Run pipeline
         env:
+          # Mirror keepalive.yml's || fallback so the same secret pair
+          # configured in repo Settings works here too. ANTHROPIC_API_KEY
+          # MUST be added separately or the Discoverer's Haiku extraction
+          # step will fail — see the pipeline error log if so.
           ANTHROPIC_API_KEY:         ${{ secrets.ANTHROPIC_API_KEY }}
-          NEXT_PUBLIC_SUPABASE_URL:  ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL:  ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PINECONE_API_KEY:          ${{ secrets.PINECONE_API_KEY }}
           PINECONE_INDEX_NAME:       ${{ secrets.PINECONE_INDEX_NAME }}
           HUGGINGFACE_API_TOKEN:     ${{ secrets.HUGGINGFACE_API_TOKEN }}
