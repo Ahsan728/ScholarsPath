@@ -2,7 +2,9 @@ import { adminSupabase } from "@/lib/supabase"
 
 export async function StatsBar() {
   try {
-    // Count from BOTH legacy opportunities AND discovered_opportunities
+    // Count from BOTH legacy opportunities AND discovered_opportunities.
+    // Apply the same Phase 0 gate as getOpportunities / getActivePrograms
+    // so the bar matches what users actually see in the catalog.
     const [
       { count: legacyTotal }, { count: legacyOpen },
       { count: discTotal }, { count: discActive },
@@ -10,9 +12,20 @@ export async function StatsBar() {
     ] = await Promise.all([
       adminSupabase.from("opportunities").select("*", { count: "exact", head: true }),
       adminSupabase.from("opportunities").select("*", { count: "exact", head: true }).eq("status", "open"),
-      adminSupabase.from("discovered_opportunities").select("*", { count: "exact", head: true }),
-      adminSupabase.from("discovered_opportunities").select("*", { count: "exact", head: true }).eq("is_active", true),
-      adminSupabase.from("masters_programs").select("*", { count: "exact", head: true }).eq("is_active", true),
+      adminSupabase.from("discovered_opportunities")
+        .select("*", { count: "exact", head: true })
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_match", "name_changed"]),
+      adminSupabase.from("discovered_opportunities")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_match", "name_changed"]),
+      adminSupabase.from("masters_programs")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_english", "name_changed"]),
     ])
 
     const totalOpps = (legacyTotal ?? 0) + (discTotal ?? 0)

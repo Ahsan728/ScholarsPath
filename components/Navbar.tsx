@@ -114,7 +114,7 @@ export function Navbar() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search 7,500+ programs..."
+              placeholder="Search 7,800+ programs..."
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-full bg-gray-50 focus:bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none transition-all"
             />
           </div>
@@ -240,7 +240,7 @@ export function Navbar() {
             {/* Primary nav */}
             <Link href="/programs" onClick={closeAll}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50">
-              📚 All Programs <span className="ml-auto text-xs text-gray-400">7,500+</span>
+              📚 All Programs <span className="ml-auto text-xs text-gray-400">7,800+</span>
             </Link>
             <Link href="/programs?emjm_only=true" onClick={closeAll}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-700 hover:bg-blue-50">

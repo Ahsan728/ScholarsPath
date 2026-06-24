@@ -75,6 +75,18 @@ CATEGORIES = {
     "bachelor_engineering": ("811 Bachelor's degrees in Engineering.txt",
                               "https://www.bachelorsportal.com/",
                               "engineering", "bachelor"),
+    "bachelor_natural_science": ("470 Bachelor's degrees in Natural Science & Mathematics.txt",
+                                 "https://www.bachelorsportal.com/",
+                                 "science", "bachelor"),
+    "bachelor_medicine":    ("466 Bachelor's degrees in Medicine & Health.txt",
+                              "https://www.bachelorsportal.com/",
+                              "health", "bachelor"),
+    "bachelor_cs_it":       ("744 Bachelor's degrees in Computer Science & IT.txt",
+                              "https://www.bachelorsportal.com/",
+                              "cs_ai", "bachelor"),
+    "bachelor_social":      ("1.3k Bachelor's degrees in Social Science.txt",
+                              "https://www.bachelorsportal.com/",
+                              "social", "bachelor"),
 }
 
 
@@ -243,6 +255,54 @@ FIELD_KEYWORDS = {
         ("Robotics",                ["robotic", "mechatronics"]),
         ("Materials Engineering",   ["materials"]),
     ],
+    "bachelor_natural_science": [
+        ("Physics",                 ["physics", "astrophysics", "quantum"]),
+        ("Chemistry",               ["chemistry", "chemical sciences"]),
+        ("Biology",                 ["biology", "biological", "biotech"]),
+        ("Mathematics",             ["mathematics", "statistics", "applied math"]),
+        ("Earth Sciences",          ["geology", "earth", "geosciences"]),
+        ("Astronomy",               ["astronomy", "astrophysics", "cosmology"]),
+        ("Marine Sciences",         ["marine science", "oceanography"]),
+        ("Biochemistry",            ["biochemistry", "molecular biology"]),
+        ("Environmental Science",   ["environmental science"]),
+    ],
+    "bachelor_medicine": [
+        ("Medicine",                ["medicine", "medical"]),
+        ("Pharmacy",                ["pharmacy", "pharmaceutical"]),
+        ("Nursing",                 ["nursing", "midwifery"]),
+        ("Dentistry",               ["dentistry", "dental"]),
+        ("Public Health",           ["public health", "epidemiology"]),
+        ("Biomedical Sciences",     ["biomedical"]),
+        ("Physiotherapy",           ["physiotherapy", "physical therapy", "rehabilitation"]),
+        ("Veterinary",              ["veterinary"]),
+        ("Psychology",              ["psychology", "neuroscience"]),
+        ("Nutrition",               ["nutrition", "dietetics"]),
+    ],
+    "bachelor_cs_it": [
+        ("Computer Science",        ["computer science", "computing"]),
+        ("Artificial Intelligence", ["artificial intelligence", " ai ", "machine learning"]),
+        ("Data Science",            ["data science", "data analytics"]),
+        ("Cybersecurity",           ["cybersecurity", "cyber security", "information security"]),
+        ("Software Engineering",    ["software engineering", "software development"]),
+        ("Information Systems",     ["information system", "information technology"]),
+        ("Game Development",        ["game development", "gaming", "game design"]),
+        ("Web Development",         ["web development", "web design"]),
+        ("Networks",                ["network", "telecommunication"]),
+        ("Mobile Development",      ["mobile development", "mobile app"]),
+    ],
+    "bachelor_social": [
+        ("Political Science",       ["political science", "politics", "government"]),
+        ("International Relations", ["international relations", "diplomacy", "global"]),
+        ("Sociology",               ["sociology", "social science"]),
+        ("Psychology",              ["psychology", "psych"]),
+        ("Anthropology",            ["anthropology", "ethnography"]),
+        ("Public Administration",   ["public administration", "public policy"]),
+        ("Communications",          ["communication", "media studies"]),
+        ("Journalism",              ["journalism"]),
+        ("Education",               ["education", "teaching", "pedagogy"]),
+        ("Criminology",             ["criminology", "criminal justice"]),
+        ("Development Studies",     ["development studies"]),
+    ],
 }
 
 
@@ -256,7 +316,11 @@ def infer_fields(slug: str, name: str, desc: str) -> list[str]:
         defaults = {"social": "Social Sciences", "arts": "Arts & Design",
                     "humanities": "Humanities", "law": "Law",
                     "bachelor_business": "Business",
-                    "bachelor_engineering": "Engineering"}
+                    "bachelor_engineering": "Engineering",
+                    "bachelor_natural_science": "Natural Sciences",
+                    "bachelor_medicine": "Medicine & Health",
+                    "bachelor_cs_it": "Computer Science",
+                    "bachelor_social": "Social Sciences"}
         out = [defaults.get(slug, "General")]
     return out[:4]
 

@@ -34,7 +34,7 @@ const QUICK_FILTERS = [
 const FEATURE_HIGHLIGHTS = [
   {
     icon: "🎓",
-    title: "7,500+ Programs",
+    title: "7,800+ Programs",
     desc: "Masters & bachelors from 800+ European universities. English-taught, validated, updated weekly.",
   },
   {
@@ -200,7 +200,7 @@ export default async function HomePage({ searchParams }: HomeProps) {
                   <p className="text-[10px] uppercase tracking-wide text-blue-200">Programs</p>
                 </div>
                 <div className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-3">
-                  <p className="text-2xl font-extrabold">16+</p>
+                  <p className="text-2xl font-extrabold">30+</p>
                   <p className="text-[10px] uppercase tracking-wide text-blue-200">Countries</p>
                 </div>
                 <div className="rounded-xl bg-white/15 backdrop-blur-sm px-4 py-3">

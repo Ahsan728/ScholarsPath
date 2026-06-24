@@ -238,16 +238,32 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
 // Live counts for the homepage hero (programs + opportunities + EMJMs)
 export async function getHeroCounts(): Promise<{ programs: number; opportunities: number; emjm: number }> {
   try {
+    // Counts must match what the public catalog actually shows — apply
+    // the same Phase 0 quality gate as getOpportunities / getActivePrograms.
     const [
       { count: programs },
       { count: legacyOpps },
       { count: discOpps },
       { count: emjm },
     ] = await Promise.all([
-      adminSupabase.from("masters_programs").select("*", { count: "exact", head: true }).eq("is_active", true),
-      adminSupabase.from("opportunities").select("*", { count: "exact", head: true }),
-      adminSupabase.from("discovered_opportunities").select("*", { count: "exact", head: true }),
-      adminSupabase.from("masters_programs").select("*", { count: "exact", head: true }).eq("is_active", true).eq("program_type", "erasmus_mundus_joint"),
+      adminSupabase.from("masters_programs")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_english", "name_changed"]),
+      adminSupabase.from("opportunities")
+        .select("*", { count: "exact", head: true }),
+      adminSupabase.from("discovered_opportunities")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_match", "name_changed"]),
+      adminSupabase.from("masters_programs")
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("program_type", "erasmus_mundus_joint")
+        .eq("url_status", "ok")
+        .in("page_status", ["specific_english", "name_changed"]),
     ])
     return {
       programs: programs ?? 0,
@@ -255,7 +271,7 @@ export async function getHeroCounts(): Promise<{ programs: number; opportunities
       emjm: emjm ?? 0,
     }
   } catch {
-    return { programs: 7000, opportunities: 140, emjm: 36 }
+    return { programs: 7800, opportunities: 1700, emjm: 36 }
   }
 }
 
