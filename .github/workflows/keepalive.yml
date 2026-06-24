@@ -21,8 +21,12 @@ jobs:
     steps:
       - name: Insert keepalive row
         env:
-          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Accept either naming convention so the same workflow works
+          # whether the secrets were set as SUPABASE_URL/SUPABASE_KEY
+          # (per the original guidance) or NEXT_PUBLIC_SUPABASE_URL/
+          # SUPABASE_SERVICE_ROLE_KEY (what cleanup.yml uses).
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
           # fail loud if either secret is missing — silent failure here
