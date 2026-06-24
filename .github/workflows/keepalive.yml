@@ -1,0 +1,42 @@
+name: Supabase Keepalive
+
+# Supabase free-tier projects pause after ~7 days with no real database
+# activity (API calls returning cached data don't count, neither do
+# dashboard logins). A daily INSERT into a tiny table resets that
+# timer and keeps the project live indefinitely without an upgrade.
+#
+# Apply scripts/keepalive_migration.sql once in the Supabase SQL
+# editor before enabling this workflow.
+
+on:
+  schedule:
+    # Daily at 09:00 UTC. Window is 7 days, so daily gives ~6 days of
+    # slack if a run ever fails.
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Insert keepalive row
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          # fail loud if either secret is missing — silent failure here
+          # would let the project pause without warning
+          : "${SUPABASE_URL:?missing NEXT_PUBLIC_SUPABASE_URL secret}"
+          : "${SUPABASE_KEY:?missing SUPABASE_SERVICE_ROLE_KEY secret}"
+
+          # -f makes curl exit non-zero on HTTP >= 400 so a failing
+          # ping marks the workflow run as failed (emails the repo owner)
+          status=$(curl -fsS -o /dev/null -w "%{http_code}" -X POST \
+            "${SUPABASE_URL}/rest/v1/keepalive" \
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{}')
+          echo "Keepalive ping responded with HTTP ${status}"
