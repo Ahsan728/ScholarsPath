@@ -52,26 +52,35 @@ SB_W = {**SB_R, "Content-Type": "application/json", "Prefer": "return=minimal"}
 
 DOCS = os.path.join(os.path.dirname(__file__), "..", "Documents")
 
-# Category slug → (file basename, mastersportal source URL, catalog code)
+# Category slug → (file basename, mastersportal source URL, classifier
+# category slug, level). Master files use level="master", bachelor
+# files use level="bachelor". Level affects the inserted row, the
+# fingerprint hash, and the Haiku URL-resolver prompt.
 CATEGORIES = {
     "social":     ("2.7k Master's degrees in Social Sci.txt",
                    "https://www.mastersportal.eu/",
-                   "social"),
+                   "social", "master"),
     "arts":       ("1.0k Master's degrees in Arts, Desi.txt",
                    "https://www.mastersportal.eu/",
-                   "arts"),
+                   "arts", "master"),
     "humanities": ("856 Master's degrees in Humanities.txt",
                    "https://www.mastersportal.eu/",
-                   "arts"),
+                   "arts", "master"),
     "law":        ("442 Master's degrees in Law in Euro.txt",
                    "https://www.mastersportal.eu/",
-                   "social"),
+                   "social", "master"),
+    "bachelor_business":    ("1.6k Bachelor's degrees in Business.txt",
+                              "https://www.bachelorsportal.com/",
+                              "business", "bachelor"),
+    "bachelor_engineering": ("811 Bachelor's degrees in Engineering.txt",
+                              "https://www.bachelorsportal.com/",
+                              "engineering", "bachelor"),
 }
 
 
 # ── Parser (lifted intact from insert_environmental_science.py) ────────
-def fp(program_name: str, country: str) -> str:
-    raw = f"{program_name.lower().strip()}|{country.lower()}|master"
+def fp(program_name: str, country: str, level: str = "master") -> str:
+    raw = f"{program_name.lower().strip()}|{country.lower()}|{level}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -104,10 +113,16 @@ def parse_duration_tuition(s: str):
 def parse_chunk(chunk: str) -> Optional[dict]:
     lines = [line.strip() for line in chunk.split("\n")]
     nonempty = [line for line in lines if line]
+    # Masters' Mastersportal dumps mark each programme block with a
+    # "Check Your Fit" line; Bachelors' Bachelorsportal dumps don't,
+    # so fall back to the start of the chunk when the marker is absent.
     cyf_indices = [i for i, l in enumerate(nonempty) if l == "Check Your Fit"]
-    if not cyf_indices:
-        return None
-    block = nonempty[cyf_indices[-1] + 1:]
+    block = (nonempty[cyf_indices[-1] + 1:] if cyf_indices else nonempty)
+    # Skip any trailing fragments that look like duration/tuition leftovers
+    # from the previous programme rather than the start of a new one.
+    while block and not (block[0].startswith("Logo of ")
+                        or len(block[0]) > 4):
+        block = block[1:]
     if len(block) < 4:
         return None
     idx = 0
@@ -202,6 +217,32 @@ FIELD_KEYWORDS = {
         ("Performing Arts",         ["theatre", "performance", "dance"]),
         ("Fashion",                 ["fashion"]),
     ],
+    "bachelor_business": [
+        ("Management",              ["management", "leadership", "organisation"]),
+        ("Finance",                 ["finance", "financial", "banking", "investment"]),
+        ("Accounting",              ["accounting", "audit", "taxation"]),
+        ("Marketing",               ["marketing", "brand", "consumer", "advertising"]),
+        ("International Business",  ["international business", "global business"]),
+        ("Economics",               ["economics", "economic"]),
+        ("Entrepreneurship",        ["entrepreneurship", "entrepreneur", "startup"]),
+        ("Hospitality",             ["hospitality", "hotel", "tourism"]),
+        ("Digital Business",        ["digital business", "e-commerce", "fintech"]),
+        ("Supply Chain",            ["supply chain", "logistics"]),
+    ],
+    "bachelor_engineering": [
+        ("Mechanical Engineering",  ["mechanical"]),
+        ("Electrical Engineering",  ["electrical", "electronic"]),
+        ("Civil Engineering",       ["civil engineering"]),
+        ("Chemical Engineering",    ["chemical engineering"]),
+        ("Computer Engineering",    ["computer engineering", "embedded", "computing"]),
+        ("Aerospace Engineering",   ["aerospace", "aeronautical", "avionic"]),
+        ("Automotive Engineering",  ["automotive"]),
+        ("Marine Engineering",      ["marine", "naval", "maritime"]),
+        ("Environmental Engineering", ["environmental engineering"]),
+        ("Industrial Engineering",  ["industrial", "manufacturing"]),
+        ("Robotics",                ["robotic", "mechatronics"]),
+        ("Materials Engineering",   ["materials"]),
+    ],
 }
 
 
@@ -212,22 +253,30 @@ def infer_fields(slug: str, name: str, desc: str) -> list[str]:
         if any(k in text for k in kws):
             out.append(label)
     if not out:
-        out = [{"social":"Social Sciences", "arts":"Arts & Design",
-                "humanities":"Humanities", "law":"Law"}[slug]]
+        defaults = {"social": "Social Sciences", "arts": "Arts & Design",
+                    "humanities": "Humanities", "law": "Law",
+                    "bachelor_business": "Business",
+                    "bachelor_engineering": "Engineering"}
+        out = [defaults.get(slug, "General")]
     return out[:4]
 
 
 # ── Haiku URL resolver ─────────────────────────────────────────────────
 def resolve_urls_batch(records: list[dict], run_id: str,
-                       max_usd: float) -> dict:
+                       max_usd: float, level: str = "master") -> dict:
     """Take a batch of records, return {fingerprint: url_or_empty}."""
     lines = []
     for i, r in enumerate(records, 1):
         lines.append(f"{i}. \"{r['program_name']}\" at {r['university']}, "
                      f"{r['city']}, {r['country']}")
+    level_word = "master's" if level == "master" else "bachelor's"
+    slug_hints = ("/en/masters/<slug>, /en/programmes/<slug>"
+                  if level == "master"
+                  else "/en/bachelors/<slug>, /en/undergraduate/<slug>, "
+                       "/en/programmes/<slug>")
     prompt = (
-        "For each numbered programme below, give your best-effort guess "
-        "of the OFFICIAL programme page URL on the university's own "
+        f"For each numbered {level_word} programme below, give your best-effort "
+        "guess of the OFFICIAL programme page URL on the university's own "
         "domain. Phase 0 validation will verify each URL afterwards, "
         "so a reasonable guess is better than an empty string.\n\n"
         + "\n".join(lines)
@@ -235,10 +284,9 @@ def resolve_urls_batch(records: list[dict], run_id: str,
         + '{"urls": [{"n": 1, "url": "https://..."}, ...]}\n\n'
         + "Rules:\n"
         + "- url MUST start with https:// and be on the university's "
-        + "  official domain (not aggregator sites like mastersportal "
-        + "  or studyportals).\n"
-        + "- Prefer typical slugs like /en/masters/<slug>, /study/<slug>, "
-        + "  /education/<slug>, /programmes/<slug>.\n"
+        + "  official domain (not aggregator sites like mastersportal, "
+        + "  bachelorsportal or studyportals).\n"
+        + f"- Prefer typical slugs like {slug_hints}.\n"
         + "- Return exactly one entry per numbered programme."
     )
     try:
@@ -260,7 +308,7 @@ def resolve_urls_batch(records: list[dict], run_id: str,
         if not url.startswith("https://"):
             continue
         rec = records[n - 1]
-        out[fp(rec["program_name"], rec["country"])] = url
+        out[fp(rec["program_name"], rec["country"], level)] = url
     return out
 
 
@@ -281,17 +329,17 @@ def fetch_existing_fingerprints() -> set[str]:
 
 
 def insert(rec: dict, slug: str, url: str, source_url: str,
-           dry_run: bool) -> bool:
+           category: str, level: str, dry_run: bool) -> bool:
+    level_word = "Master's" if level == "master" else "Bachelor's"
     description = rec["description"] or (
-        f"Master's programme in {rec['program_name']} at {rec['university']}, "
+        f"{level_word} programme in {rec['program_name']} at {rec['university']}, "
         f"{rec['country']}. English-taught.")
     record = {
         "university": rec["university"][:300],
         "program_name": rec["program_name"][:300],
         "country": rec["country"][:100],
         "city": (rec.get("city") or None) and rec["city"][:100],
-        "category": {"social":"social","arts":"arts","humanities":"arts",
-                     "law":"social"}[slug],
+        "category": category,
         "duration_years": rec.get("duration_years"),
         "tuition_usd_year": rec.get("tuition_usd_year"),
         "language": "English",
@@ -299,11 +347,12 @@ def insert(rec: dict, slug: str, url: str, source_url: str,
                                        rec["description"]),
         "scholarship_available": False,
         "description": description[:2000],
-        "level": "master",
-        "source_name": f"mastersportal_{slug}",
+        "level": level,
+        "source_name": f"mastersportal_{slug}" if level == "master"
+                       else f"bachelorsportal_{slug.replace('bachelor_','')}",
         "source_url": source_url,
         "apply_url": (url or "")[:600],
-        "fingerprint": fp(rec["program_name"], rec["country"]),
+        "fingerprint": fp(rec["program_name"], rec["country"], level),
         "is_active": True,
     }
     if dry_run:
@@ -343,7 +392,7 @@ def main():
 
         grand_added = 0
         for slug in cats:
-            fname, src_url, _ = CATEGORIES[slug]
+            fname, src_url, category, level = CATEGORIES[slug]
             path = os.path.join(DOCS, fname)
             if not os.path.exists(path):
                 print(f"\n=== SKIP {slug} (file not found: {fname}) ===",
@@ -363,7 +412,7 @@ def main():
             # Dedup within file and against DB
             seen, novel = set(), []
             for p in parsed:
-                key = fp(p["program_name"], p["country"])
+                key = fp(p["program_name"], p["country"], level)
                 if key in existing or key in seen:
                     continue
                 seen.add(key); novel.append(p)
@@ -381,7 +430,7 @@ def main():
                 for i, b in enumerate(batches, 1):
                     try:
                         url_map.update(resolve_urls_batch(
-                            b, run.run_id, args.max_usd))
+                            b, run.run_id, args.max_usd, level))
                     except Exception as e:
                         if "BudgetExceeded" in str(e):
                             print(f"  BUDGET CAP HIT at batch {i}, "
@@ -399,11 +448,12 @@ def main():
             # requirement to ingest "after verifying with proper URL")
             inserted = 0
             for p in novel:
-                key = fp(p["program_name"], p["country"])
+                key = fp(p["program_name"], p["country"], level)
                 url = url_map.get(key, "")
                 if not args.no_haiku and not url:
                     run.skipped(); continue
-                if insert(p, slug, url, src_url, args.dry_run):
+                if insert(p, slug, url, src_url, category, level,
+                          args.dry_run):
                     inserted += 1
                     existing.add(key)
                     run.ok()
