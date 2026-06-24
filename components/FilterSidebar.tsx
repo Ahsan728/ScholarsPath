@@ -46,8 +46,10 @@ const RESEARCH_DOMAINS = [
   { value: "environment", label: "Environment", keywords: ["environmental", "sustainability", "climate", "renewable", "ecology", "biodiversity", "conservation"] },
   { value: "health", label: "Health / Medicine", keywords: ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"] },
   { value: "business", label: "Business", keywords: ["business", "management", "finance", "economics", "marketing", "mba", "accounting"] },
-  { value: "social", label: "Social Sciences", keywords: ["social", "political", "law", "international relations", "public policy", "communication", "journalism"] },
-  { value: "arts", label: "Arts & Humanities", keywords: ["arts", "humanities", "design", "philosophy", "history", "music", "literature"] },
+  { value: "law", label: "Law", keywords: ["law", "legal", "llm", "intellectual property", "human rights"] },
+  { value: "social", label: "Social Sciences", keywords: ["social", "political", "international relations", "public policy", "communication", "journalism", "sociology", "anthropology"] },
+  { value: "humanities", label: "Humanities", keywords: ["humanities", "philosophy", "history", "literature", "religious", "theology", "archaeology", "cultural studies"] },
+  { value: "arts", label: "Arts & Design", keywords: ["arts", "design", "music", "fashion", "theatre", "film", "fine art", "performing"] },
   { value: "agriculture", label: "Agriculture", keywords: ["agriculture", "agronomy", "food", "forestry", "aquaculture"] },
   { value: "all", label: "All Fields", keywords: [] },
 ]

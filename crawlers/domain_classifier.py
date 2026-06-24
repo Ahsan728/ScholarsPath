@@ -1,5 +1,5 @@
-"""Classify a program or opportunity into one of the 9 standard ScholarsPath
-research-domain slugs that the public filter UI exposes.
+"""Classify a program or opportunity into one of the 11 standard
+ScholarsPath research-domain slugs that the public filter UI exposes.
 
 The slugs MUST match those in:
   - components/FilterSidebar.tsx (RESEARCH_DOMAINS — opportunity filter)
@@ -65,20 +65,32 @@ _RULES: list[tuple[str, set[str]]] = [
         "supply chain", "logistics", "hospitality", "tourism",
         "human resource", "real estate",
     }),
+    ("law", {
+        " law ", "legal", "international law", "european law",
+        "commercial law", "corporate law", "business law", "tax law",
+        "intellectual property", "ip law", "criminal law",
+        "maritime law", "environmental law", "human rights law",
+        "international and european law", "llm",
+    }),
     ("social", {
-        "social", "political", "politics", " law ", "legal",
-        "international relations", "public policy", "communication",
-        "journalism", "sociology", "anthropology", "criminology",
-        "development studies", "european studies", "area studies",
-        "human rights", "diplomacy", "global affairs", "education",
+        "social", "political", "politics", "public policy",
+        "communication", "journalism", "sociology", "anthropology",
+        "criminology", "development studies", "european studies",
+        "area studies", "diplomacy", "global affairs",
+        "international relations", "human rights", "education",
         "urban planning", "demography",
     }),
+    ("humanities", {
+        "humanities", "philosophy", "history", "historical",
+        "literature", "religious", "theology", "archaeology",
+        "cultural studies", "classics", "medieval studies",
+        "ancient", "comparative literature", "digital humanities",
+    }),
     ("arts", {
-        "humanities", "design", "philosophy", "history", "music",
-        "literature", "fashion", "fine arts", "visual arts",
+        "design", "music", "fashion", "fine arts", "visual arts",
         "performing arts", "theatre", "film", "media studies",
-        "cultural", "linguistic", "linguistics", "translation",
-        "creative writing", " art ", "digital humanities",
+        "linguistic", "linguistics", "translation", "creative writing",
+        " art ", "graphic design", "interior design",
     }),
     ("agriculture", {
         "agriculture", "agronomy", "agricultural", "forestry",

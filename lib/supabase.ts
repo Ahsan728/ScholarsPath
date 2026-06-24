@@ -77,8 +77,10 @@ const DOMAIN_KEYWORDS: Record<string, string[]> = {
   environment:  ["environmental", "sustainability", "sustainable", "climate", "renewable", "ecology", "biodiversity", "conservation"],
   health:       ["health", "medicine", "medical", "biomedical", "pharma", "clinical", "neuroscience", "psychology"],
   business:     ["business", "management", "finance", "economic", "marketing", " mba ", "accounting", "entrepreneur"],
-  social:       ["social", "political", " law ", "international relations", "public policy", "communication", "journalism"],
-  arts:         [" art ", "humanities", "design", "philosophy", "history", "music", "literature", "fashion"],
+  law:          [" law ", "legal", "llm", "intellectual property", "human rights"],
+  social:       ["social", "political", "international relations", "public policy", "communication", "journalism", "sociology", "anthropology", "criminology"],
+  humanities:   ["humanities", "philosophy", "history", "literature", "religious", "theology", "archaeology", "cultural studies"],
+  arts:         [" art ", "design", "music", "fashion", "theatre", "film", "fine art", "performing"],
   agriculture:  ["agriculture", "agronomy", " food ", "forestry", "aquaculture"],
   all:          [],
 }

@@ -34,7 +34,7 @@ const QUICK_FILTERS = [
 const FEATURE_HIGHLIGHTS = [
   {
     icon: "🎓",
-    title: "9,200+ Programs",
+    title: "7,500+ Programs",
     desc: "Masters & bachelors from 800+ European universities. English-taught, validated, updated weekly.",
   },
   {

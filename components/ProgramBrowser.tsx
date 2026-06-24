@@ -25,7 +25,9 @@ const CATEGORIES = [
   { value: "health", label: "Health" },
   { value: "agriculture", label: "Agriculture & Forestry" },
   { value: "arts", label: "Arts & Design" },
+  { value: "humanities", label: "Humanities" },
   { value: "social", label: "Social Sciences" },
+  { value: "law", label: "Law" },
   { value: "languages", label: "Languages" },
 ]
 
