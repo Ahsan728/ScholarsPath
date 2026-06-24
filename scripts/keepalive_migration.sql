@@ -16,6 +16,16 @@ CREATE TABLE IF NOT EXISTS keepalive (
   pinged_at  TIMESTAMPTZ DEFAULT now()
 );
 
+-- The Supabase service_role key bypasses RLS but still needs table-
+-- level privileges. New tables created via the SQL editor don't
+-- always inherit default grants for the service_role role, so the
+-- workflow's POST returns 403 / "permission denied for table
+-- keepalive" without this.
+GRANT SELECT, INSERT, UPDATE, DELETE ON keepalive
+  TO service_role, anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE keepalive_id_seq
+  TO service_role, anon, authenticated;
+
 -- Optional: keep the table tiny by deleting rows older than 30 days
 -- on every insert. Comment out if you'd rather not run a trigger.
 CREATE OR REPLACE FUNCTION trim_keepalive() RETURNS trigger AS $$
