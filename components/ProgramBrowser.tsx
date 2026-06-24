@@ -33,6 +33,7 @@ const COUNTRIES = [
   "Germany", "France", "Italy", "Netherlands", "Sweden",
   "Belgium", "Spain", "Poland", "Denmark", "Austria",
   "Finland", "Norway", "Switzerland", "Portugal", "Ireland",
+  "Czech Republic", "Hungary", "Lithuania", "Greece",
 ]
 
 const ACTIVE = "bg-blue-600 text-white border-blue-600"
